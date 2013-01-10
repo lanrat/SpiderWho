@@ -1,0 +1,1 @@
+{"updated_date": ["10-oct-2006"], "expiration_date": ["03-may-2014"], "status": ["clientDeleteProhibited", "clientTransferProhibited", "clientUpdateProhibited"], "domain_name": ["MICROSOFT.COM"], "creation_date": ["02-may-1991"]}

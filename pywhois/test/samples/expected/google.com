@@ -1,0 +1,1 @@
+{"updated_date": ["10-apr-2006"], "expiration_date": ["14-sep-2011"], "status": ["clientDeleteProhibited", "clientTransferProhibited", "clientUpdateProhibited"], "domain_name": ["GOOGLE.COM", "google.com"], "creation_date": ["15-sep-1997"]}
