@@ -63,7 +63,7 @@ class NICClient(object) :
         self.proxy_type = proxy_type
         self.proxy_server = server
         self.proxy_port = port
-       
+
     def findwhois_server(self, buf, hostname):
         """Search the initial TLD lookup results for the regional-specifc
         whois server for getting contact details.
@@ -77,7 +77,7 @@ class NICClient(object) :
         if (start == -1):
             start = buf.find(NICClient.WHOIS_ORG_SERVER_ID)
             parts_index = 2
-       
+
         if (start > -1):  
             end = buf[start:].find('\n')
             #print 'end:', end
@@ -96,7 +96,7 @@ class NICClient(object) :
                     nhost = nichost
                     break
         return nhost
-       
+
     def whois(self, query, hostname, flags):
         """Perform initial lookup with TLD whois server
         then, if the quick flag is false, search that result
