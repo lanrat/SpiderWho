@@ -112,6 +112,9 @@ class NICClient(object) :
         if (self.use_proxy):
             s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
 
+        #TODO
+        print "dom: " + hostname+" proxy: " + self.proxy_server + " : " + str(self.proxy_port)
+
         s.connect((hostname, 43))
         """send takes bytes as an input
         """
