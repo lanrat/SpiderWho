@@ -3,3 +3,4 @@
 domains/
 proxies.txt
 whois/*
+fail.txt
