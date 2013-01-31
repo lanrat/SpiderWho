@@ -30,9 +30,9 @@ THE SOFTWARE.
               Id:  $Id$
           Author:  Chris Wolf
 """
-import sys
-import socket
-import optparse
+#import sys
+#import socket
+#import optparse
 #import pdb
 
 def enforce_ascii(a):
@@ -76,8 +76,10 @@ class NICClient(object) :
 
     ip_whois = [ LNICHOST, RNICHOST, PNICHOST, BNICHOST ]
 
-    def __init__(self) :
+
+    def __init__(self,socket) :
         self.use_qnichost = False
+        self.socket = socket # the socket to use
        
     def findwhois_server(self, buf, hostname):
         """Search the initial TLD lookup results for the regional-specifc
@@ -121,7 +123,7 @@ class NICClient(object) :
         #print 'Performing the whois'
         #print 'parameters given:', query, hostname, flags
         #pdb.set_trace()
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s = self.socket.socket(self.socket.AF_INET, self.socket.SOCK_STREAM)
         s.connect((hostname, 43))
         """send takes bytes as an input
         """
@@ -202,7 +204,7 @@ class NICClient(object) :
         return result
 #---- END OF NICClient class def ---------------------
    
-def parse_command_line(argv):
+'''def parse_command_line(argv):
     """Options handling mostly follows the UNIX whois(1) man page, except
     long-form options can also be used.
     """
@@ -262,12 +264,12 @@ def parse_command_line(argv):
     parser.add_option("-?", "--help", action="help")
 
        
-    return parser.parse_args(argv)
+    return parser.parse_args(argv)'''
    
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     flags = 0
     nic_client = NICClient()
     (options, args) = parse_command_line(sys.argv)
     if (options.b_quicklookup is True):
         flags = flags|NICClient.WHOIS_QUICK
-    print(nic_client.whois_lookup(options.__dict__, args[1], flags))
+    print(nic_client.whois_lookup(options.__dict__, args[1], flags))'''
