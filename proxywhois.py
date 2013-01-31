@@ -44,12 +44,6 @@ class NICClient(object) :
 
     ip_whois = [ LNICHOST, RNICHOST, PNICHOST, BNICHOST ]
 
-    #used as public proxy types
-    PROXY_TYPE_SOCKS4 = socks.PROXY_TYPE_SOCKS4
-    PROXY_TYPE_SOCKS5 = socks.PROXY_TYPE_SOCKS5
-    PROXY_TYPE_HTTP = socks.PROXY_TYPE_HTTP
-
-
     def __init__(self) :
         self.use_qnichost = False
         self.use_proxy = False
