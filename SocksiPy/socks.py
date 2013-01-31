@@ -358,9 +358,21 @@ class socksocket(socket.socket):
     (identical to socket's connect).
     To select the proxy server use setproxy().
     """
+
     # Do a minimal input check first
     if (type(destpair) in (list,tuple)==False) or (len(destpair)<2) or (type(destpair[0])!=str) or (type(destpair[1])!=int):
       raise GeneralProxyError((5,_generalerrors[5]))
+
+    #I need more details, separating the tests
+    #if (type(destpair) in (list,tuple)==False):
+    #  raise GeneralProxyError((5,_generalerrors[5]+": destpair not list or tuple"))
+    #if (len(destpair)<2):
+    #  raise GeneralProxyError((5,_generalerrors[5]+": destpair is less than 2"))
+    #if (type(destpair[1])!=int):
+    #  raise GeneralProxyError((5,_generalerrors[5]+": destpair[1] is not int"))
+    #if (type(destpair[0])!=str):
+    #  print type(destpair[0]) #TODO testing
+    #  raise GeneralProxyError((5,_generalerrors[5]+": destpair[0] is not str"))
     
     #check to make sure the proxt connected to is valid
     try:

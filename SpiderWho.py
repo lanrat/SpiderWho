@@ -35,7 +35,7 @@ class WhoisThread(threading.Thread):
   def run(self):
     while self.running:
       #get next host
-      domain = self.queue.get()
+      domain = self.queue.get().upper()
 
       #TOOD rm
       #print "WHOIS: " + domain
@@ -108,6 +108,7 @@ if __name__ == '__main__':
   else:
     print "Done!"
   
+  #this is not a good way of doing this...
   q.join()
   #TODO tmp
   print "T: " + str(threading.active_count())

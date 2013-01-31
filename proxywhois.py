@@ -104,10 +104,17 @@ class NICClient(object) :
 
         #added code for proxy
         if (self.use_proxy):
-            s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
+            s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+        #else:
+            #s = socks.socket.socket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+
 
         #TODO
         #print "dom: " + hostname+" proxy: " + self.proxy_server + " : " + str(self.proxy_port)
+
+
+        #convert hostname to ascii
+        hostname = hostname.encode('ascii','ignore')
 
         s.connect((hostname, 43))
         """send takes bytes as an input
@@ -188,4 +195,13 @@ class NICClient(object) :
         #print 'whois_lookup finished'
         return result
 #---- END OF NICClient class def ---------------------
- 
+
+if __name__ == "__main__":
+  import sys #for args
+  flags = 0
+  nic_client = NICClient()
+  #(options, args) = parse_command_line(sys.argv)
+  #if (options.b_quicklookup is True):
+  #    flags = flags|NICClient.WHOIS_QUICK
+  #print(nic_client.whois_lookup(options.__dict__, args[1], flags))
+  print(nic_client.whois_lookup(None, sys.argv[1], 0))
