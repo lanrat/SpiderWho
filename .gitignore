@@ -2,5 +2,6 @@
 *.swp
 domains/
 proxies.txt
+bad_proxies.txt
 whois/*
 fail.txt
