@@ -104,13 +104,7 @@ class NICClient(object) :
 
         #added code for proxy
         if (self.use_proxy):
-            s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
-        #else:
-            #s = socks.socket.socket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
-
-
-        #TODO
-        #print "dom: " + hostname+" proxy: " + self.proxy_server + " : " + str(self.proxy_port)
+          s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
 
 
         #convert hostname to ascii

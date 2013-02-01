@@ -44,7 +44,7 @@ class WhoisThread(threading.Thread):
       except proxywhois.socks.GeneralProxyError as e:
         if e.value[0] == 6: #is there a proxy error?
           print "Unable to connect to proxy: "+ self.proxy_server +":"+ str(self.proxy_port)
-          self.running = False;
+          self.running = False
           self.queue.put(domain)
         else:
           print "Error Running whois on domain:["+domain+"] " + str(e)
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     print "Done!"
   
   #this is not a good way of doing this...
-  q.join()
+  #q.join()
   #TODO tmp
   print "T: " + str(threading.active_count())
   print "Q: " + str(q.qsize())

@@ -124,6 +124,7 @@ class socksocket(socket.socket):
   """
   
   def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, _sock=None):
+    self.allow_direct = True
     _orgsocket.__init__(self,family,type,proto,_sock)
     if _defaultproxy != None:
       self.__proxy = _defaultproxy
@@ -160,6 +161,7 @@ class socksocket(socket.socket):
         Only relevant when username is also provided.
     """
     self.__proxy = (proxytype,addr,port,rdns,username,password)
+    self.allow_direct = False #disable local fallback
   
   def __negotiatesocks5(self,destaddr,destport):
     """__negotiatesocks5(self,destaddr,destport)
@@ -374,32 +376,43 @@ class socksocket(socket.socket):
     #  print type(destpair[0]) #TODO testing
     #  raise GeneralProxyError((5,_generalerrors[5]+": destpair[0] is not str"))
     
-    #check to make sure the proxt connected to is valid
-    try:
-      if self.__proxy[0] == PROXY_TYPE_SOCKS5:
-        if self.__proxy[2] != None:
-          portnum = self.__proxy[2]
-        else:
-          portnum = 1080
-        _orgsocket.connect(self,(self.__proxy[1],portnum))
-        self.__negotiatesocks5(destpair[0],destpair[1])
-      elif self.__proxy[0] == PROXY_TYPE_SOCKS4:
-        if self.__proxy[2] != None:
-          portnum = self.__proxy[2]
-        else:
-          portnum = 1080
-        _orgsocket.connect(self,(self.__proxy[1],portnum))
-        self.__negotiatesocks4(destpair[0],destpair[1])
-      elif self.__proxy[0] == PROXY_TYPE_HTTP:
-        if self.__proxy[2] != None:
-          portnum = self.__proxy[2]
-        else:
-          portnum = 8080
-        _orgsocket.connect(self,(self.__proxy[1],portnum))
-        self.__negotiatehttp(destpair[0],destpair[1])
-      elif self.__proxy[0] == None:
-        _orgsocket.connect(self,(destpair[0],destpair[1]))
+    if self.__proxy[0] == PROXY_TYPE_SOCKS5:
+      if self.__proxy[2] != None:
+        portnum = self.__proxy[2]
       else:
-        raise GeneralProxyError((4,_generalerrors[4]))
-    except socket.error:
-      raise GeneralProxyError((6,_generalerrors[6]))
+        portnum = 1080
+      try:
+        _orgsocket.connect(self,(self.__proxy[1],portnum))
+      except socket.error:
+        raise GeneralProxyError((6,_generalerrors[6]))
+      self.__negotiatesocks5(destpair[0],destpair[1])
+    elif self.__proxy[0] == PROXY_TYPE_SOCKS4:
+      if self.__proxy[2] != None:
+        portnum = self.__proxy[2]
+      else:
+        portnum = 1080
+      try:
+        _orgsocket.connect(self,(self.__proxy[1],portnum))
+      except socket.error:
+        raise GeneralProxyError((6,_generalerrors[6]))
+      self.__negotiatesocks4(destpair[0],destpair[1])
+    elif self.__proxy[0] == PROXY_TYPE_HTTP:
+      if self.__proxy[2] != None:
+        portnum = self.__proxy[2]
+      else:
+        portnum = 8080
+      try:
+        _orgsocket.connect(self,(self.__proxy[1],portnum))
+      except socket.error:
+        raise GeneralProxyError((6,_generalerrors[6]))
+      self.__negotiatehttp(destpair[0],destpair[1])
+    elif self.__proxy[0] == None and self.allow_direct:
+      #WARNING: NO PROXY IN USE!
+      print "WARNING: NOT USING PROXY"
+      _orgsocket.connect(self,(destpair[0],destpair[1]))
+    #elif not self.allow_direct:
+    #  raise GeneralProxyError((6,_generalerrors[6]))
+    else:
+      #TODO RM
+      print "p struct: " +str(self.__proxy)
+      raise GeneralProxyError((4,_generalerrors[4]))
