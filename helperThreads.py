@@ -29,7 +29,6 @@ class WhoisThread(threading.Thread):
     f = open(self.folder+domain,'w')
     f.write(text)
     f.close()
-    #print text
 
   def run(self):
     ManagerThread.incrementWorkerThreadCount()
@@ -115,44 +114,42 @@ class ManagerThread(threading.Thread):
     return self.input_queue.qsize()
 
   def run(self):
-    #first start whois threads
-    print "Starting threads.."
-    try:
-      for l in open(self.proxy_list,'r'):
-          l = l.strip()
-          if l[0] != '#': #if not a comment
-            s = l.split()
-            if len(s) == 2:
-              #TODO validate!
-              try:
-                i = int(s[1])
-              except ValueError:
-                print "Proxy "+ s[0] + " has non-int port"
-              else:
-                t = WhoisThread(s[0],i,self.input_queue,self.fail_queue)
-                t.daemon = True
-                t.start()
-    except IOError:
-      print "Unable to open proxy file: " + self.proxy_list
-    print str(threading.active_count()) + " threads started"
-
-    #now start FailThread
+    #start FailThread
     self.fail_thread = FailThread(self.fail_file,self.fail_queue)
     self.fail_thread.daemon = True
     self.fail_thread.start()
-    print "Fail thread started"
+
+    #start whois threads
+    try:
+      for l in open(self.proxy_list,'r'):
+        l = l.strip()
+        if l[0] != '#': #if not a comment
+          s = l.split()
+          if len(s) == 2:
+            #TODO validate!
+            try:
+              i = int(s[1])
+            except ValueError:
+              print "Proxy "+ s[0] + " has non-int port"
+            else:
+              t = WhoisThread(s[0],i,self.input_queue,self.fail_queue)
+              t.daemon = True
+              t.start()
+    except IOError:
+      print "Unable to open proxy file: " + self.proxy_list
+    print str(ManagerThread.getWorkerThreadCount()) + " worker threads started"
 
     #now start EnqueueThread
     self.input_thread = EnqueueThread(self.domain_list,self.input_queue)
-    #self.input_thread.setDaemon(True)
     self.input_thread.start()
-    print "Input thread started"
 
     self.ready = True
-    
+
     #now wait for all the work to be done
-    while not self.input_thread.done:
-      self.input_queue.join()
+    while self.input_thread.isAlive():
+      time.sleep(0.1)
+
+    self.input_queue.join()
 
     print "All work done, finishing saving failures"
 
@@ -177,10 +174,14 @@ class FailThread(threading.Thread):
     while True:
       l = self._queue.get()
       self._num_fails += 1
-      fail_file = open(self._filename,'a+')
-      fail_file.write(l+'\n')
-      fail_file.close()
-      self._queue.task_done()
+      try:
+        fail_file = open(self._filename,'a+')
+        fail_file.write(l+'\n')
+        fail_file.close()
+      except IOError:
+        print "Unabe to write to fail file"
+      finally:
+        self._queue.task_done()
 
 
 #this is a simple thread to read input lines from a 
@@ -190,14 +191,10 @@ class EnqueueThread(threading.Thread):
     threading.Thread.__init__(self)
     self._filename = filename
     self._queue = queue
-    self._done = False
     self._domains = 0
 
   def getDomainCount(self):
     return self._domains
-
-  def done(self):
-    return self._done
 
   def run(self):
     try:
@@ -208,5 +205,4 @@ class EnqueueThread(threading.Thread):
           self._domains +=1
     except IOError: 
       print "Unable to open file: "+ self._filename
-    self._done = True
 

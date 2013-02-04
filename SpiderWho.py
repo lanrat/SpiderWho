@@ -5,26 +5,25 @@ from helperThreads import ManagerThread
 
 debug = True
 
-if __name__ == '__main__':
-  if not len(sys.argv) == 3:
-    print "usage: " + sys.argv[0] + " <proxy list file> <domain list file>"
-    exit()
-
-  t = ManagerThread(sys.argv[1],sys.argv[2])
+def run(proxy_list,domain_list):
+  t = ManagerThread(proxy_list,domain_list)
+  t.daemon = True
   t.start()
 
   #wait for threads to get ready and settle
   if not t.ready:
-    time.sleep(0.5)
+    time.sleep(0.1)
 
   try:
     #TODO this condition does not hold corectly all the time
     while ManagerThread.getWorkerThreadCount() > 1 and t.isAlive():
       if debug:
-        print "Domains: "+ str(t.input_thread.getDomainCount())
-        print "Failures:  "+ str(t.fail_thread.numFails())
-        print "Worker Threads: "+ str(ManagerThread.getWorkerThreadCount())
-        print "Queue size: "+ str(t.getQueueSize())
+        print "|----------------------"
+        print "| Domains: "+ str(t.input_thread.getDomainCount())
+        print "| Failures:  "+ str(t.fail_thread.numFails())
+        print "| Worker Threads: "+ str(ManagerThread.getWorkerThreadCount())
+        print "| Queue size: "+ str(t.getQueueSize())
+        print "|----------------------"
       time.sleep(5)
     if (ManagerThread.getWorkerThreadCount() == 0):
       #TODO detect this better; does not work
@@ -39,9 +38,16 @@ if __name__ == '__main__':
         print "timeout expired: exiting before all fails finished writing to disk"
         
     #real status output
-    print "Prossessed "+ str(t.input_thread.getDomainCount()) +" Domains"
+    print "Loaded "+ str(t.input_thread.getDomainCount()) +" Domains"
     print "Had "+ str(t.fail_thread.numFails()) +" Failures"
     print "Ending with "+ str(ManagerThread.getWorkerThreadCount()) +" worker threads"
     if t.getQueueSize() > 0:
       print "Ending queue size is: "+ str(t.getQueueSize())
+
+if __name__ == '__main__':
+  if not len(sys.argv) == 3:
+    print "usage: " + sys.argv[0] + " <proxy list file> <domain list file>"
+    exit()
+
+  run (sys.argv[1],sys.argv[2])
 
