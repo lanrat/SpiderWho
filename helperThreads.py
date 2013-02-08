@@ -3,20 +3,42 @@ from Queue import Queue
 import sys #for debugging
 import proxywhois
 import time
+from SocksiPy import socks
 
 class WhoisThread(threading.Thread):
   def __init__(self,proxy,port,queue,fail):
     threading.Thread.__init__(self)
     self.client = proxywhois.NICClient()
     #TODO add better proxy type handling
-    self.client.set_proxy(proxywhois.socks.PROXY_TYPE_HTTP,proxy,port)
+    self.proxy_type = socks.PROXY_TYPE_HTTP
     self.queue = queue
     self.wait = 20 #TODO change this
     self.folder = "whois/"
     self.fail = fail
     self.proxy_server = proxy
     self.proxy_port = port
+    self.client.set_proxy(self.proxy_type,proxy,port)
     self.running = True
+
+  def getExternalIP(self):
+    """this method uses the proxy socket to get the remote IP on that proxy"""
+    host = "curlmyip.com"
+    #host = "ipaddr.me"
+    #host = "icanhazip.com"
+    #host = "bot.whatismyipaddress.com"
+    #host = "myip.dnsdynamic.com"
+    try:
+      s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+      s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
+      s.connect((host,80))
+      s.send('GET /\r\n\r\n')
+      r = s.recv(4096)
+    except socks.GeneralProxyError as e:
+      return None
+    else:
+      #TODO debug the return value
+      return r.split()[-1]
+
 
   def whois(self,domain):
     #always use the native python client
@@ -32,6 +54,15 @@ class WhoisThread(threading.Thread):
 
   def run(self):
     ManagerThread.incrementWorkerThreadCount()
+    #get and print my remote IP, also tests the proxy for usability
+    ip = self.getExternalIP()
+    if not ip:
+      print "WARNING: Failed to connect to proxy: "+ self.proxy_server
+      ManagerThread.decrementWorkerThreadCount()
+      return
+    else:
+      print "Thread running with proxy: "+ self.proxy_server +" with remote IP: " + str(ip)
+    
     while self.running:
       #get next host
       domain = self.queue.get().upper()
@@ -142,6 +173,9 @@ class ManagerThread(threading.Thread):
     #now start EnqueueThread
     self.input_thread = EnqueueThread(self.domain_list,self.input_queue)
     self.input_thread.start()
+
+    #wait for threads to settle
+    time.sleep(0.2)
 
     self.ready = True
 
