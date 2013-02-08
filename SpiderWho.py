@@ -46,7 +46,7 @@ def run(proxy_list,domain_list):
     print "Ending with "+ str(ManagerThread.getWorkerThreadCount()) +" worker threads"
     if t.getQueueSize() > 0:
       print "Ending queue size is: "+ str(t.getQueueSize())
-    print "Running time: "+str(time_delta)+" secconds"
+    print "Running time: "+str(round(time_delta,2))+" secconds"
     print "Averaging "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/time_delta,2)) + " lookups per seccond"
 
 if __name__ == '__main__':
