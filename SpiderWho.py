@@ -16,7 +16,6 @@ def run(proxy_list,domain_list):
     time.sleep(0.1)
 
   try:
-    #TODO this condition does not hold corectly all the time
     while ManagerThread.getWorkerThreadCount() > 1 and t.isAlive():
       if debug:
         print "|----------------------"
@@ -25,9 +24,8 @@ def run(proxy_list,domain_list):
         print "| Worker Threads: "+ str(ManagerThread.getWorkerThreadCount())
         print "| Queue size: "+ str(t.getQueueSize())
         print "|----------------------"
-      time.sleep(5)
+      time.sleep(5) # this is ugly
     if (ManagerThread.getWorkerThreadCount() == 0):
-      #TODO detect this better; does not work
       print "No valid Proxy threads running!!"
   except KeyboardInterrupt:
     print "Keyboard Interrupt... Exiting"
