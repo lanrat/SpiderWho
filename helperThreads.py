@@ -5,6 +5,8 @@ import proxywhois
 import time
 from SocksiPy import socks
 
+debug = True
+
 class WhoisThread(threading.Thread):
   def __init__(self,proxy,port,queue,fail):
     threading.Thread.__init__(self)
@@ -36,7 +38,6 @@ class WhoisThread(threading.Thread):
     except socks.GeneralProxyError as e:
       return None
     else:
-      #TODO debug the return value
       return r.split()[-1]
 
 
@@ -61,7 +62,13 @@ class WhoisThread(threading.Thread):
       ManagerThread.decrementWorkerThreadCount()
       return
     else:
-      print "Thread running with proxy: "+ self.proxy_server +" with remote IP: " + str(ip)
+      if debug:
+        print "Thread running with proxy: "+ self.proxy_server +" with remote IP: " + str(ip)
+
+    if not ManagerThread.addRemoteProxyIP(ip):
+      print "WARNING: Proxy: "+self.proxy_server+" with remote ip: "+ip+" is already being used"
+      ManagerThread.decrementWorkerThreadCount()
+      return
     
     while self.running:
       #get next host
@@ -86,7 +93,8 @@ class WhoisThread(threading.Thread):
         print "FAILED: [" + domain + "] error: " + str(sys.exc_info()[0])
         self.fail.put(domain)
       else:
-        print "SUCSESS: [" + domain + "]"
+        if debug:
+          print "SUCSESS: [" + domain + "]"
         self.save_data(domain,data)
       finally:
         #inform the queue we are done
@@ -103,6 +111,22 @@ class ManagerThread(threading.Thread):
   #static variable to track worker thread count
   numWorkerThreads = 0
   numWorkerThreads_lock = threading.Lock()
+  proxy_ip_list = list()
+  proxy_ip_list_lock = threading.Lock()
+
+  @staticmethod
+  def addRemoteProxyIP(ip):
+    ManagerThread.proxy_ip_list_lock.acquire()
+    ret = None
+    try:
+      if not ip in ManagerThread.proxy_ip_list:
+        ManagerThread.proxy_ip_list.append(ip)
+        ret = True
+      else:
+        ret = False
+    finally:
+      ManagerThread.proxy_ip_list_lock.release()
+      return ret
 
   @staticmethod
   def incrementWorkerThreadCount():
