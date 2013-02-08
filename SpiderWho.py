@@ -8,6 +8,7 @@ debug = True
 def run(proxy_list,domain_list):
   t = ManagerThread(proxy_list,domain_list)
   t.daemon = True
+  start_time = time.time()
   t.start()
 
   #wait for threads to get ready and settle
@@ -33,6 +34,8 @@ def run(proxy_list,domain_list):
   else:
     print "Done!"
   finally:
+    end_time = time.time()
+    time_delta = (end_time - start_time)
     #sanity checks for the fail
     if not t.fail_queue.empty():
         print "timeout expired: exiting before all fails finished writing to disk"
@@ -43,6 +46,8 @@ def run(proxy_list,domain_list):
     print "Ending with "+ str(ManagerThread.getWorkerThreadCount()) +" worker threads"
     if t.getQueueSize() > 0:
       print "Ending queue size is: "+ str(t.getQueueSize())
+    print "Running time: "+str(time_delta)+" secconds"
+    print "Averaging "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/time_delta,2)) + " lookups per seccond"
 
 if __name__ == '__main__':
   if not len(sys.argv) == 3:
