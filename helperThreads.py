@@ -3,7 +3,7 @@ from Queue import Queue
 import sys #for debugging
 import proxywhois
 import time
-from SocksiPy import socks
+import socks
 
 debug = True
 
