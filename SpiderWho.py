@@ -15,7 +15,6 @@ def run(proxy_list,domain_list):
   if not t.ready:
     time.sleep(0.1)
 
-
   try:
     while t.getWorkerThreadCount() > 1 and t.isAlive():
       if debug:

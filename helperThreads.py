@@ -6,58 +6,11 @@ import whoisThread
 #this thread is in charge of starting all the other 
 #threads and keeping track of thir running status
 class ManagerThread(threading.Thread):
-  #static variable to track worker thread count
-  #numWorkerThreads = 0
-  #numWorkerThreads_lock = threading.Lock()
-  #proxy_ip_list = list()
-  #proxy_ip_list_lock = threading.Lock()
-
 
   def getWorkerThreadCount(self):
     return whoisThread.getWorkerThreadCount();
 
-
-  ''' @staticmethod
-  def addRemoteProxyIP(ip):
-    ManagerThread.proxy_ip_list_lock.acquire()
-    ret = None
-    try:
-      if not ip in ManagerThread.proxy_ip_list:
-        ManagerThread.proxy_ip_list.append(ip)
-        ret = True
-      else:
-        ret = False
-    finally:
-      ManagerThread.proxy_ip_list_lock.release()
-      return ret
-
-  @staticmethod
-  def incrementWorkerThreadCount():
-    ManagerThread.numWorkerThreads_lock.acquire()
-    try:
-      ManagerThread.numWorkerThreads += 1
-    finally:
-      ManagerThread.numWorkerThreads_lock.release()
-
-  @staticmethod
-  def decrementWorkerThreadCount():
-    ManagerThread.numWorkerThreads_lock.acquire()
-    try:
-      ManagerThread.numWorkerThreads -= 1
-    finally:
-      ManagerThread.numWorkerThreads_lock.release()
-
-  @staticmethod
-  def getWorkerThreadCount():
-    ret = -1
-    ManagerThread.numWorkerThreads_lock.acquire()
-    try:
-      ret = ManagerThread.numWorkerThreads
-    finally:
-      ManagerThread.numWorkerThreads_lock.release()
-    return ret '''
-
-  def __init__(self,proxy_list,domain_list):
+   def __init__(self,proxy_list,domain_list):
     threading.Thread.__init__(self)
     self.proxy_list = proxy_list
     self.domain_list = domain_list
