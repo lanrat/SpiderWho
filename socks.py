@@ -413,6 +413,5 @@ class socksocket(socket.socket):
     #elif not self.allow_direct:
     #  raise GeneralProxyError((6,_generalerrors[6]))
     else:
-      #TODO RM
-      print "p struct: " +str(self.__proxy)
+      #print "p struct: " +str(self.__proxy)
       raise GeneralProxyError((4,_generalerrors[4]))

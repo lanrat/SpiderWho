@@ -15,17 +15,18 @@ def run(proxy_list,domain_list):
   if not t.ready:
     time.sleep(0.1)
 
+
   try:
-    while ManagerThread.getWorkerThreadCount() > 1 and t.isAlive():
+    while t.getWorkerThreadCount() > 1 and t.isAlive():
       if debug:
         print "|----------------------"
         print "| Domains: "+ str(t.input_thread.getDomainCount())
         print "| Failures:  "+ str(t.fail_thread.numFails())
-        print "| Worker Threads: "+ str(ManagerThread.getWorkerThreadCount())
+        print "| Worker Threads: "+ str(t.getWorkerThreadCount())
         print "| Queue size: "+ str(t.getQueueSize())
         print "|----------------------"
       time.sleep(5) # this is ugly
-    if (ManagerThread.getWorkerThreadCount() == 0):
+    if (t.getWorkerThreadCount() == 0):
       print "No valid Proxy threads running!!"
   except KeyboardInterrupt:
     print "Keyboard Interrupt... Exiting"
@@ -37,15 +38,16 @@ def run(proxy_list,domain_list):
     #sanity checks for the fail
     if not t.fail_queue.empty():
         print "timeout expired: exiting before all fails finished writing to disk"
-        
-    #real status output
-    print "Loaded "+ str(t.input_thread.getDomainCount()) +" Domains"
-    print "Had "+ str(t.fail_thread.numFails()) +" Failures"
-    print "Ending with "+ str(ManagerThread.getWorkerThreadCount()) +" worker threads"
-    if t.getQueueSize() > 0:
-      print "Ending queue size is: "+ str(t.getQueueSize())
-    print "Running time: "+str(round(time_delta,2))+" secconds"
-    print "Averaging "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/time_delta,2)) + " lookups per seccond"
+       
+    if t.ready and t.input_thread.valid:
+      #real status output
+      print "Loaded "+ str(t.input_thread.getDomainCount()) +" Domains"
+      print "Had "+ str(t.fail_thread.numFails()) +" Failures"
+      print "Ending with "+ str(t.getWorkerThreadCount()) +" worker threads"
+      if t.getQueueSize() > 0:
+        print "Ending queue size is: "+ str(t.getQueueSize())
+      print "Running time: "+str(round(time_delta,2))+" secconds"
+      print "Averaging "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/time_delta,2)) + " lookups per seccond"
 
 if __name__ == '__main__':
   if not len(sys.argv) == 3:
