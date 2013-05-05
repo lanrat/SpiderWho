@@ -5,6 +5,7 @@ import whoisThread
 import os
 
 output_folder = "whois/"
+log_folder = "whois/"
 fail_file = "fail.txt"
 max_queue_size = 10000
 
@@ -33,7 +34,7 @@ class ManagerThread(threading.Thread):
 
   def run(self):
     #startSaveThread
-    self.save_thread = SaveThread(output_folder,fail_file,self.save_queue)
+    self.save_thread = SaveThread(log_folder,output_folder,fail_file,self.save_queue)
     self.save_thread.start()
 
     #start whois threads
@@ -111,15 +112,18 @@ class EnqueueThread(threading.Thread):
 
 #runs in the background and saves data as we collect it 
 class SaveThread(threading.Thread):
-  def __init__(self,folder,fail_filename,queue):
+  def __init__(self,log_folder,out_folder,fail_filename,queue):
     threading.Thread.__init__(self)
-    self.folder = folder
+    self._out_folder = out_folder
+    self._log_folder = log_folder
     self._fail_filename = fail_filename
     self._queue = queue
     self._num_saved = 0
     self._num_faild = 0
-    if not os.path.exists(folder):
-      os.makedirs(folder)
+    if not os.path.exists(out_folder):
+      os.makedirs(out_folder)
+    if not os.path.exists(log_folder):
+      os.makedirs(log_folder)
 
   def getNumFails(self):
     return self._num_faild
@@ -130,9 +134,8 @@ class SaveThread(threading.Thread):
   def run(self):
     while True:
       r = self._queue.get()
-      #TODO more all data
       try:
-        #TODO: save data always
+        self.saveLog(r)
         if r.current_attempt.success:
           self.saveData(r)
         else:
@@ -140,6 +143,17 @@ class SaveThread(threading.Thread):
       finally:
         self._num_saved += 1
         self._queue.task_done()
+
+  
+  def saveLog(self,record):
+    try:
+      f = open(self._log_folder+record.domain+".log",'w')
+      f.write('\n'.join(record.getLogData()) + '\n')
+      f.close()
+      return True
+    except IOError:
+      print "Unabe to write "+record.domain+".log log to file"
+      return False
 
 
   def saveFail(self,record):
@@ -156,12 +170,12 @@ class SaveThread(threading.Thread):
 
   def saveData(self,record):
     try:
-      f = open(self.folder+record.domain,'w')
+      f = open(self._out_folder+record.domain,'w')
       f.write(record.getData())
       f.close()
       return True
     except IOError:
-      print "Unabe to write "+r.domain+" data to file"
+      print "Unabe to write "+record.domain+" data to file"
       return False
 
 

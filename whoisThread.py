@@ -82,6 +82,16 @@ class WhoisResult:
     else:
       print "ERROR: Adding error to result without attempt"
 
+  def getLogData(self):
+    log = list()
+    log.append("DOMAIN: "+self.domain)
+    log.append("Attempts: "+str(self.numAttempts()))
+    log.append("Max Attempts: "+ str(self.maxAttempts))
+    for (num, attempt) in enumerate(self.attempts):
+      log.append("-----------Attempt:"+str(num)+"------------")
+      log += attempt.getLogData()
+    return log
+
   def setData(self,data):
     self.data = data
 
@@ -104,6 +114,18 @@ class WhoisAttempt:
   def addError(self,error):
     self.errors.append(error)
 
+  def getLogData(self):
+    #TODO add whois referal/server data
+    log = list()
+    log.append("Timestamp: "+ str(self.timestamp))
+    log.append("Proxy: "+ self.proxy.getLog())
+    log.append("Sucsess: "+ str(self.success))
+    numErrors = len(self.errors)
+    log.append("Errors: "+ str(numErrors))
+    for error in self.errors:
+      log.append("--Error: "+str(error))
+    return log
+
 
 
 #class to hold a proxy object
@@ -125,6 +147,9 @@ class Proxy:
       return False
     self.ready = True
     return self.ready
+
+  def getLog(self):
+    return str(self) +" Errors: "+ str(self.errors)
 
 
   def __repr__(self):
@@ -176,6 +201,7 @@ class WhoisThread(threading.Thread):
 
 
   def fail(self,record,error):
+    self.proxy.errors += 1
     record.addError(error)
     print "["+ str(self.proxy) +"] "+ error
     if record.numAttempts() < 3:
