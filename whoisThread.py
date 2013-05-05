@@ -93,9 +93,11 @@ class WhoisResult:
     return self.data
 
   def save(self):
-    f = open(output_folder+self.domain,'w')
-    f.write(self.data)
-    f.close()
+    #TODO save all data
+    if self.current_attempt.success:
+      f = open(output_folder+self.domain,'w')
+      f.write(self.data)
+      f.close()
 
   def numAttempts(self):
     return len(self.attempts)
@@ -139,7 +141,7 @@ class Proxy:
   def __repr__(self):
     ret = self.server +":"+str(self.port)
     if self.external_ip:
-      ret += " ExternalIP: "+self.external_ip
+      ret += " ExtIP: "+self.external_ip
     return ret
 
 
@@ -186,7 +188,7 @@ class WhoisThread(threading.Thread):
 
   def fail(self,record,error):
     record.addError(error)
-    print error
+    print "["+ str(self.proxy) +"] "+ error
     if record.numAttempts() < 3:
       self.queue.put(record)
     else:
@@ -197,7 +199,7 @@ class WhoisThread(threading.Thread):
     incrementWorkerThreadCount()
     #get and print my remote IP, also tests the proxy for usability
     if not self.proxy.connect():
-      print "WARNING: Failed to connect to proxy: "+ str(self.proxy)
+      print "WARNING: Failed to connect to proxy"
       decrementWorkerThreadCount()
       return
     else:
@@ -205,7 +207,7 @@ class WhoisThread(threading.Thread):
         print "Thread running with proxy: "+ str(self.proxy)
 
     if not addRemoteProxyIP(self.proxy.external_ip):
-      print "WARNING: Proxy: "+str(self.proxy)+" is already being used"
+      print "WARNING: Proxy is already being used"
       decrementWorkerThreadCount()
       return
     
@@ -217,7 +219,7 @@ class WhoisThread(threading.Thread):
         self.proxy.whois(record)
       except proxywhois.socks.GeneralProxyError as e:
         if e.value[0] == 6: #is there a proxy error?
-          error = "Unable to connect to once valid proxy: "+ str(self.proxy)
+          error = "Unable to connect to once valid proxy"
           print error
           record.addError(error)
           self.queue.put(record)

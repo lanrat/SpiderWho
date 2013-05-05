@@ -63,6 +63,8 @@ class ManagerThread(threading.Thread):
     #now wait for all the work to be done
     while self.input_thread.isAlive():
       time.sleep(0.1)
+    
+    print "Done loading domains to queue"
 
     self.input_queue.join()
 
@@ -72,7 +74,6 @@ class ManagerThread(threading.Thread):
     #can I join a daemon thread?
     self.fail_queue.join()
 
-#TODO make a SaveThread
 
 #runs in the background and when an input fails it logs the bad 
 #data in a file
