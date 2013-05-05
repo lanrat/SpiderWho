@@ -3,7 +3,6 @@ import proxywhois
 import socks
 import sys #for debugging
 import time
-import os
 
 debug = True
 
@@ -12,10 +11,6 @@ numWorkerThreads_lock = threading.Lock()
 numWorkerThreads = 0
 proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
-output_folder = "whois/"
-
-if not os.path.exists(output_folder):
-  os.makedirs(output_folder)
 
 
 def addRemoteProxyIP(ip):
@@ -91,13 +86,6 @@ class WhoisResult:
 
   def getData(self):
     return self.data
-
-  def save(self):
-    #TODO save all data
-    if self.current_attempt.success:
-      f = open(output_folder+self.domain,'w')
-      f.write(self.data)
-      f.close()
 
   def numAttempts(self):
     return len(self.attempts)
@@ -176,13 +164,14 @@ class Proxy:
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-  def __init__(self,proxy,queue,fail):
+  def __init__(self,proxy,queue,save,fail):
     threading.Thread.__init__(self)
     self.daemon = True
     self.queue = queue
     self.proxy = proxy
     self.wait = 20 #TODO change this
     self.fail_queue = fail
+    self.save_queue = save
     self.running = True
 
 
@@ -241,7 +230,7 @@ class WhoisThread(threading.Thread):
           print "SUCSESS: [" + record.domain + "]"
       finally:
         #TODO move this to a save thread
-        record.save()
+        self.save_queue.put(record)
         #inform the queue we are done
         self.queue.task_done()
 

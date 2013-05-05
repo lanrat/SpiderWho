@@ -14,7 +14,7 @@ def printStatus(t):
     print "|----------------------"
     print "| Domains: "+ str(t.input_thread.getDomainCount())
     print "| Failures:  "+ str(t.fail_thread.numFails())
-    #print "| Saved:  "+ str(t.getSavedRecords()) #TODO SaveThread
+    print "| Saved:  "+ str(t.save_thread.getNumSaved())
     print "| Worker Threads: "+ str(t.getWorkerThreadCount())
     print "| Queue size: "+ str(t.getQueueSize())
     print "| Lookups per seccond: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
@@ -59,5 +59,5 @@ if __name__ == '__main__':
   if not len(sys.argv) == 3:
     print "usage: " + sys.argv[0] + " <proxy list file> <domain list file>"
     exit()
-  run (sys.argv[1],sys.argv[2])
+  run(sys.argv[1],sys.argv[2])
 
