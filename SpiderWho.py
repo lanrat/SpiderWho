@@ -13,7 +13,7 @@ def printStatus(t):
     delta  = timedelta(seconds=running_seconds)
     print "|----------------------"
     print "| Domains: "+ str(t.input_thread.getDomainCount())
-    print "| Failures:  "+ str(t.fail_thread.numFails())
+    print "| Failures:  "+ str(t.save_thread.getNumFails())
     print "| Saved:  "+ str(t.save_thread.getNumSaved())
     print "| Worker Threads: "+ str(t.getWorkerThreadCount())
     print "| Queue size: "+ str(t.getQueueSize())
@@ -45,9 +45,6 @@ def run(proxy_list,domain_list):
     if debug:
       print "Done!"
   finally:
-    #sanity checks for the fail
-    if not t.fail_queue.empty():
-        print "timeout expired: exiting before all fails finished writing to disk"
     if t.ready and t.input_thread.valid:
       #real status output
       printStatus(t)

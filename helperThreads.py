@@ -23,10 +23,8 @@ class ManagerThread(threading.Thread):
     self.proxy_list = proxy_list
     self.domain_list = domain_list
     self.input_queue = Queue(maxsize=max_queue_size)
-    self.fail_queue = Queue()
     self.save_queue = Queue(maxsize=max_queue_size)
     self.input_thread = None
-    self.fail_thread = None
     self.save_thread = None
     self.ready = False
 
@@ -34,11 +32,8 @@ class ManagerThread(threading.Thread):
     return self.input_queue.qsize()
 
   def run(self):
-    #start FailThread
-    self.fail_thread = FailThread(fail_file,self.fail_queue)
-    self.fail_thread.start()
-
-    self.save_thread = SaveThread(output_folder,self.save_queue)
+    #startSaveThread
+    self.save_thread = SaveThread(output_folder,fail_file,self.save_queue)
     self.save_thread.start()
 
     #start whois threads
@@ -56,7 +51,7 @@ class ManagerThread(threading.Thread):
             else:
               #TODO add better proxy type handling
               proxy = whoisThread.Proxy(s[0],i,whoisThread.socks.PROXY_TYPE_HTTP)
-              t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue,self.fail_queue)
+              t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
               t.start()
     except IOError:
       print "Unable to open proxy file: " + self.proxy_list
@@ -82,40 +77,9 @@ class ManagerThread(threading.Thread):
     self.input_queue.join()
 
     if debug:
-      print "All work done, finishing saving failures"
-    #finish saving fails before exit
-    self.fail_queue.join()
-
-    if debug:
-      print "finishing saving results"
+      print "Saving results"
     self.save_queue.join()
 
-
-#runs in the background and when an input fails it logs the bad 
-#data in a file
-class FailThread(threading.Thread):
-  def __init__(self,filename,queue):
-    threading.Thread.__init__(self)
-    self.daemon = True
-    self._filename = filename
-    self._queue = queue
-    self._num_fails = 0
-
-  def numFails(self):
-    return self._num_fails
-
-  def run(self):
-    while True:
-      l = self._queue.get()
-      self._num_fails += 1
-      try:
-        fail_file = open(self._filename,'a+')
-        fail_file.write(l.domain+'\n')
-        fail_file.close()
-      except IOError:
-        print "Unabe to write to fail file"
-      finally:
-        self._queue.task_done()
 
 
 #this is a simple thread to read input lines from a 
@@ -147,13 +111,18 @@ class EnqueueThread(threading.Thread):
 
 #runs in the background and saves data as we collect it 
 class SaveThread(threading.Thread):
-  def __init__(self,folder,queue):
+  def __init__(self,folder,fail_filename,queue):
     threading.Thread.__init__(self)
     self.folder = folder
+    self._fail_filename = fail_filename
     self._queue = queue
     self._num_saved = 0
+    self._num_faild = 0
     if not os.path.exists(folder):
       os.makedirs(folder)
+
+  def getNumFails(self):
+    return self._num_faild
 
   def getNumSaved(self):
     return self._num_saved
@@ -161,16 +130,38 @@ class SaveThread(threading.Thread):
   def run(self):
     while True:
       r = self._queue.get()
-      self._num_saved += 1
+      #TODO more all data
       try:
-        #TODO save all data
-        f = open(self.folder+r.domain,'w')
-        f.write(r.getData())
-        f.close()
-      except IOError:
-        print "Unabe to write "+r.domain+" data to file"
+        #TODO: save data always
+        if r.current_attempt.success:
+          self.saveData(r)
+        else:
+          self.saveFail(r)
       finally:
+        self._num_saved += 1
         self._queue.task_done()
 
+
+  def saveFail(self,record):
+    self._num_faild += 1
+    try:
+      fail_file = open(self._fail_filename,'a+')
+      fail_file.write(record.domain+'\n')
+      fail_file.close()
+      return True
+    except IOError:
+      print "Unabe to write to fail file"
+      return False
+
+
+  def saveData(self,record):
+    try:
+      f = open(self.folder+record.domain,'w')
+      f.write(record.getData())
+      f.close()
+      return True
+    except IOError:
+      print "Unabe to write "+r.domain+" data to file"
+      return False
 
 

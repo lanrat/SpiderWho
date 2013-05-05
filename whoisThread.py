@@ -68,7 +68,8 @@ class WhoisResult:
     self.domain = domain.upper()
     self.attempts = list()
     self.current_attempt = None
-    self.data = None
+    self.data = None #TODO RM
+    self.maxAttempts = False
 
   def addAttempt(self,attempt):
     self.attempts.append(attempt)
@@ -159,18 +160,17 @@ class Proxy:
     #TODO expand to save data in result
     text = self.client.whois_lookup(None, record.domain, 0)
     record.setData(text)
-
+    return text
 
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-  def __init__(self,proxy,queue,save,fail):
+  def __init__(self,proxy,queue,save):
     threading.Thread.__init__(self)
     self.daemon = True
     self.queue = queue
     self.proxy = proxy
     self.wait = 20 #TODO change this
-    self.fail_queue = fail
     self.save_queue = save
     self.running = True
 
@@ -181,14 +181,15 @@ class WhoisThread(threading.Thread):
     if record.numAttempts() < 3:
       self.queue.put(record)
     else:
-      self.fail_queue.put(record)
+      record.maxAttempts = True
+      self.save_queue.put(record)
 
 
   def run(self):
     incrementWorkerThreadCount()
     #get and print my remote IP, also tests the proxy for usability
     if not self.proxy.connect():
-      print "WARNING: Failed to connect to proxy"
+      print "WARNING: Failed to connect to proxy: " + str(self.proxy)
       decrementWorkerThreadCount()
       return
     else:
@@ -205,7 +206,8 @@ class WhoisThread(threading.Thread):
       record = self.queue.get()
       record.addAttempt(WhoisAttempt(self.proxy))
       try:
-        self.proxy.whois(record)
+        if not self.proxy.whois(record):
+          raise Exception("NULL WHOIS value")
       except proxywhois.socks.GeneralProxyError as e:
         if e.value[0] == 6: #is there a proxy error?
           error = "Unable to connect to once valid proxy"
@@ -228,9 +230,8 @@ class WhoisThread(threading.Thread):
         record.current_attempt.success = True
         if debug:
           print "SUCSESS: [" + record.domain + "]"
-      finally:
-        #TODO move this to a save thread
         self.save_queue.put(record)
+      finally:
         #inform the queue we are done
         self.queue.task_done()
 
