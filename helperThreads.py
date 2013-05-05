@@ -4,8 +4,8 @@ import time
 import whoisThread
 import os
 
-output_folder = "whois/"
-log_folder = "whois/"
+output_folder = "results/"
+log_folder = "logs/"
 fail_file = "fail.txt"
 max_queue_size = 10000
 
