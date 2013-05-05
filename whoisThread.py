@@ -139,9 +139,9 @@ class Proxy:
 
 
   def __repr__(self):
-    ret = self.server +":"+str(self.port)
+    ret = "Server:"+self.server +":"+str(self.port)
     if self.external_ip:
-      ret += " ExtIP: "+self.external_ip
+      ret += " ExtIP:"+self.external_ip
     return ret
 
 
@@ -246,7 +246,7 @@ class WhoisThread(threading.Thread):
         self.queue.task_done()
 
       if not self.queue.empty() and self.running:
-        time.sleep(self.wait)
+        time.sleep(self.wait) #TODO change this to be dynamic
     decrementWorkerThreadCount()
 
 

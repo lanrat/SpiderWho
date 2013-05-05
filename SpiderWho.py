@@ -2,12 +2,29 @@
 import sys
 import time
 from helperThreads import ManagerThread
+from datetime import timedelta
 
 debug = True
+start_time = time.time()
+
+
+def printStatus(t):
+    running_seconds = (time.time() - start_time)
+    delta  = timedelta(seconds=running_seconds)
+    print "|----------------------"
+    print "| Domains: "+ str(t.input_thread.getDomainCount())
+    print "| Failures:  "+ str(t.fail_thread.numFails())
+    #print "| Saved:  "+ str(t.getSavedRecords()) #TODO SaveThread
+    print "| Worker Threads: "+ str(t.getWorkerThreadCount())
+    print "| Queue size: "+ str(t.getQueueSize())
+    print "| Lookups per seccond: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
+    print "| Running time: "+ str(delta)
+    print "|----------------------"
+
 
 def run(proxy_list,domain_list):
   t = ManagerThread(proxy_list,domain_list)
-  t.daemon = True
+  t.daemon = True #required for ctrl-c exit
   start_time = time.time()
   t.start()
 
@@ -18,41 +35,29 @@ def run(proxy_list,domain_list):
   try:
     while t.getWorkerThreadCount() > 1 and t.isAlive():
       if debug:
-        print "|----------------------"
-        print "| Domains: "+ str(t.input_thread.getDomainCount())
-        print "| Failures:  "+ str(t.fail_thread.numFails())
-        print "| Worker Threads: "+ str(t.getWorkerThreadCount())
-        print "| Queue size: "+ str(t.getQueueSize())
-        print "| Lookups per seccond: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/(time.time()-start_time),2))
-        print "|----------------------"
+        printStatus(t)
       time.sleep(5) # this is ugly
     if (t.getWorkerThreadCount() == 0):
       print "No valid Proxy threads running!!"
   except KeyboardInterrupt:
     print "Keyboard Interrupt... Exiting"
   else:
-    print "Done!"
+    if debug:
+      print "Done!"
   finally:
-    end_time = time.time()
-    time_delta = (end_time - start_time)
     #sanity checks for the fail
     if not t.fail_queue.empty():
         print "timeout expired: exiting before all fails finished writing to disk"
-       
     if t.ready and t.input_thread.valid:
       #real status output
-      print "Loaded "+ str(t.input_thread.getDomainCount()) +" Domains"
-      print "Had "+ str(t.fail_thread.numFails()) +" Failures"
-      print "Ending with "+ str(t.getWorkerThreadCount()) +" worker threads"
+      printStatus(t)
       if t.getQueueSize() > 0:
-        print "Ending queue size is: "+ str(t.getQueueSize())
-      print "Running time: "+str(round(time_delta,2))+" secconds"
-      print "Averaging "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/time_delta,2)) + " lookups per seccond"
+        print "Ending with non-empty queue!"
+
 
 if __name__ == '__main__':
   if not len(sys.argv) == 3:
     print "usage: " + sys.argv[0] + " <proxy list file> <domain list file>"
     exit()
-
   run (sys.argv[1],sys.argv[2])
 

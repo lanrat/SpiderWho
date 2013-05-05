@@ -64,11 +64,13 @@ class ManagerThread(threading.Thread):
     while self.input_thread.isAlive():
       time.sleep(0.1)
     
-    print "Done loading domains to queue"
+    if debug:
+      print "Done loading domains to queue"
 
     self.input_queue.join()
 
-    print "All work done, finishing saving failures"
+    if debug:
+      print "All work done, finishing saving failures"
 
     #finish saving fails before exit
     #can I join a daemon thread?
