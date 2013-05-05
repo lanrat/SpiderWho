@@ -23,6 +23,7 @@ def run(proxy_list,domain_list):
         print "| Failures:  "+ str(t.fail_thread.numFails())
         print "| Worker Threads: "+ str(t.getWorkerThreadCount())
         print "| Queue size: "+ str(t.getQueueSize())
+        print "| Lookups per seccond: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/(time.time()-start_time),2))
         print "|----------------------"
       time.sleep(5) # this is ugly
     if (t.getWorkerThreadCount() == 0):

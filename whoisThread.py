@@ -71,16 +71,47 @@ def getWorkerThreadCount():
 class WhoisResult:
   def __init__(self,domain):
     self.domain = domain.upper()
-    self.proxies = list()
+    self.attempts = list()
+    self.current_attempt = None
     self.data = None
+
+  def addAttempt(self,attempt):
+    self.attempts.append(attempt)
+    self.current_attempt = self.attempts[-1]
+    return self.current_attempt
+
+  def addError(self,error):
+    if self.current_attempt:
+      self.current_attempt.addError(error)
+    else:
+      print "ERROR: Adding error to result without attempt"
+
   def setData(self,data):
     self.data = data
+
   def getData(self):
     return self.data
+
   def save(self):
     f = open(output_folder+self.domain,'w')
     f.write(self.data)
     f.close()
+
+  def numAttempts(self):
+    return len(self.attempts)
+
+
+#class to hold details on an attempt to whois a particular domain
+class WhoisAttempt:
+  def __init__(self,proxy):
+    #timestamp (float)
+    self.timestamp = time.time()
+    self.success = False
+    self.proxy = proxy
+    self.errors = list()
+
+  def addError(self,error):
+    self.errors.append(error)
 
 
 
@@ -131,14 +162,15 @@ class Proxy:
       self.external_ip = r.split()[-1]
       return self.external_ip
 
+
   def whois(self,record):
     if not self.ready:
       return False
-    #always use the native python client
-    #TODO expand to sava data in result
-    #TODO log proxy query time, add proxy to record
+    #TODO expand to save data in result
     text = self.client.whois_lookup(None, record.domain, 0)
     record.setData(text)
+
+
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
@@ -148,8 +180,17 @@ class WhoisThread(threading.Thread):
     self.queue = queue
     self.proxy = proxy
     self.wait = 20 #TODO change this
-    self.fail = fail
+    self.fail_queue = fail
     self.running = True
+
+
+  def fail(self,record,error):
+    record.addError(error)
+    print error
+    if record.numAttempts() < 3:
+      self.queue.put(record)
+    else:
+      self.fail_queue.put(record)
 
 
   def run(self):
@@ -171,34 +212,34 @@ class WhoisThread(threading.Thread):
     while self.running:
       #get next host
       record = self.queue.get()
+      record.addAttempt(WhoisAttempt(self.proxy))
       try:
         self.proxy.whois(record)
       except proxywhois.socks.GeneralProxyError as e:
         if e.value[0] == 6: #is there a proxy error?
-          print "Unable to connect to proxy: "+ str(self.proxy)
-          self.running = False
-          #TODO why?
+          error = "Unable to connect to once valid proxy: "+ str(self.proxy)
+          print error
+          record.addError(error)
           self.queue.put(record)
+          self.running = False
         else:
-          print "Error Running whois on domain:["+record.domain+"] " + str(e)
-          #TODO why?
-          self.fail.put(record)
+          error = "Error Running whois on domain:["+record.domain+"] " + str(e)
+          self.fail(record,error)
       except proxywhois.socks.HTTPError as e:
         #TODO also handle the socks case
         #bad domain name
-        print "Invalid domain: " + record.domain
-        #TODO why?
-        self.fail.put(record)
+        error = "Invalid domain: " + record.domain
+        self.fail(record,error)
       except Exception as e:
-        print "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
-        #TODO why?
-        self.fail.put(record)
+        error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
+        self.fail(record,error)
       else:
+        record.current_attempt.success = True
         if debug:
           print "SUCSESS: [" + record.domain + "]"
+      finally:
         #TODO move this to a save thread
         record.save()
-      finally:
         #inform the queue we are done
         self.queue.task_done()
 
