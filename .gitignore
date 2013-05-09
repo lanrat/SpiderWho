@@ -3,7 +3,5 @@
 domains/
 proxies.txt
 bad_proxies.txt
-logs/*
-results/*
-fail.txt
+out/*
 .nfs*

@@ -17,7 +17,7 @@ def printStatus(t):
     print "| Saved:  "+ str(t.save_thread.getNumSaved())
     print "| Worker Threads: "+ str(t.getWorkerThreadCount())
     print "| Queue size: "+ str(t.getQueueSize())
-    print "| Lookups per seccond: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
+    print "| Lookups per second: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
     print "| Running time: "+ str(delta)
     print "|----------------------"
 
