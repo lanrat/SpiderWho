@@ -4,8 +4,8 @@ import os
 
 fail_file = 'out/parse_fail.txt'
 results_dir = 'out/results/'
-zip_folder = 'zip/'
-whois_folder = 'zip/whois/'
+zip_folder = 'out/zip/'
+whois_folder = 'out/zip/whois/'
 
 
 if not os.path.exists(zip_folder):

@@ -5,4 +5,3 @@ proxies.txt
 bad_proxies.txt
 out/*
 .nfs*
-zip/*
