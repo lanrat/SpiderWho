@@ -33,10 +33,10 @@ def run(proxy_list,domain_list):
     time.sleep(0.1)
 
   try:
-    while t.getWorkerThreadCount() > 1 and t.isAlive():
+    while t.getWorkerThreadCount() >= 1 and t.isAlive():
       if debug:
         printStatus(t)
-      time.sleep(5) # this is ugly
+      time.sleep(1) # this is ugly
     if (t.getWorkerThreadCount() == 0):
       print "No valid Proxy threads running!!"
   except KeyboardInterrupt:

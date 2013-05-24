@@ -1,6 +1,9 @@
+#!/usr/bin/env python
 #taken from pywhois class with some modifications
 
 from SocksiPy import socks
+
+debug = True
 
 def enforce_ascii(a):
     if isinstance(a, str) or isinstance(a, unicode):
@@ -97,15 +100,14 @@ class NICClient(object) :
         for the region-specifc whois server and do a lookup
         there for contact details
         """
-        #print 'Performing the whois'
-        #print 'parameters given:', query, hostname, flags
+        if debug:
+          print 'parameters given:', query, hostname, flags
         #pdb.set_trace()
         s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
 
         #added code for proxy
         if (self.use_proxy):
           s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
-
 
         #convert hostname to ascii
         hostname = hostname.encode('ascii','ignore')
@@ -119,7 +121,7 @@ class NICClient(object) :
             queryBytes = ("-T dn,ace -C UTF-8 " + query + "\r\n").encode()
             #print 'queryBytes:', queryBytes
         else:
-            queryBytes = (query  + "\r\n").encode()        
+            queryBytes = (query  + "\r\n").encode()
         s.send(queryBytes)
         """recv returns bytes
         """
@@ -133,16 +135,15 @@ class NICClient(object) :
         s.close()
         #pdb.set_trace()
         nhost = None
-        #print 'response', response
+        if debug:
+          print '===========response=============='
+          print response
+          print "================================="
         response = enforce_ascii(response)
         if (flags & NICClient.WHOIS_RECURSE and nhost == None):
-            #print 'Inside first if'
             nhost = self.findwhois_server(response.decode(), hostname)
-            #print 'nhost is:', nhost
         if (nhost != None):
-            #print 'inside second if'
             response += self.whois(query, nhost, 0)
-            #print 'response', response
         #print 'returning whois response'
         return response.decode()
    
