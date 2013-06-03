@@ -3,7 +3,7 @@
 
 from SocksiPy import socks
 
-debug = True
+debug = False
 
 def enforce_ascii(a):
     if isinstance(a, str) or isinstance(a, unicode):

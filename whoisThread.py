@@ -183,6 +183,8 @@ class Proxy:
     self.ready = False
     self.errors = 0
     self.client = proxywhois.NICClient()
+    self.history = dict() #TODO make more itelegent
+    self.delay = 20 # delay in secconds to wait before reusing the same proxy
 
   def connect(self):
     self.updateExternalIP()
@@ -230,6 +232,12 @@ class Proxy:
     recurse_level = 2
     whois_server = self.client.choose_server(record.domain)
     while (recurse_level > 0) and (whois_server != None):
+      if whois_server in self.history:
+        tdelta = time.time() - self.history[whois_server]
+        if tdelta < self.delay:
+          print "Whois server used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
+          time.sleep(self.delay-tdelta)
+      self.history[whois_server] = time.time()
       response = WhoisResponse(whois_server)
       data = self.client.whois(record.domain,whois_server,0)
       if debug:
@@ -252,7 +260,6 @@ class WhoisThread(threading.Thread):
     self.proxy = proxy
     self.save_queue = save
     self.running = True
-    self.history = dict(); #TODO use this
 
   def fail(self,record,error):
     self.proxy.errors += 1
@@ -316,8 +323,8 @@ class WhoisThread(threading.Thread):
         #inform the queue we are done
         self.queue.task_done()
 
-      if not self.queue.empty() and self.running:
-        time.sleep(20) #TODO change this to be dynamic
+      #if not self.queue.empty() and self.running:
+        #time.sleep(20) #TODO change this to be dynamic
     decrementWorkerThreadCount()
 
 
