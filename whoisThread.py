@@ -234,8 +234,9 @@ class Proxy:
     while (recurse_level > 0) and (whois_server != None):
       if whois_server in self.history:
         tdelta = time.time() - self.history[whois_server]
-        if tdelta < self.delay:
-          print "Whois server used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
+        #TODO testing not limiting first level whois
+        if recurse_level != 2 and tdelta < self.delay:
+          print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
           time.sleep(self.delay-tdelta)
       self.history[whois_server] = time.time()
       response = WhoisResponse(whois_server)
