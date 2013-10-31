@@ -67,6 +67,19 @@ class WhoisResult:
     self.current_attempt = None
     self.maxAttempts = False
 
+  def valid(self):
+    '''performs quick checking to verify that the data we got may contain some valid data'''
+    #check for domain exp date
+    words = ['expiration','expiry','expires','email']
+    if self.numAttempts() > 0:
+        lower_data = self.getData().lower()
+        for word in words:
+            if word in lower_data:
+                return True
+    return False
+        
+
+
   def addAttempt(self,attempt):
     self.attempts.append(attempt)
     self.current_attempt = self.attempts[-1]
@@ -318,8 +331,12 @@ class WhoisThread(threading.Thread):
       else:
         record.current_attempt.success = True
         if debug:
-          print "SUCSESS: [" + record.domain + "]"
-        self.save_queue.put(record)
+            if record.valid():
+                print "SUCSESS: [" + record.domain + "]"
+                #TODO check for minimal validity info
+                self.save_queue.put(record)
+            else:
+    
       finally:
         #inform the queue we are done
         self.queue.task_done()
