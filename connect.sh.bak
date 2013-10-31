@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+for i in $(seq 1 32);
+do
+    echo "trying ccied$i"
+    ssh -oPasswordAuthentication=no -oConnectTimeout=01 ccied$i "./discover.sh"
+done
+
