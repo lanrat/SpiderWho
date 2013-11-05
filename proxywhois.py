@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #taken from pywhois class with some modifications
 
-from SocksiPy import socks
+from libs.SocksiPy import socks
 
 debug = False
 

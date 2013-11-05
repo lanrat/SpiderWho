@@ -336,13 +336,16 @@ class WhoisThread(threading.Thread):
                 #TODO check for minimal validity info
                 self.save_queue.put(record)
             else:
-    
+                error =  "INVALID RESULT: [" + record.domain + "]"
+                print error
+                record.addError(error);
+                self.queue.put(record)
       finally:
         #inform the queue we are done
         self.queue.task_done()
 
       #if not self.queue.empty() and self.running:
-        #time.sleep(20) #TODO change this to be dynamic
+      #time.sleep(20) #TODO change this to be dynamic
     decrementWorkerThreadCount()
 
 
