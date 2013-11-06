@@ -7,6 +7,15 @@ import traceback
 
 debug = True
 
+
+#NULL whois result Exception
+class NullWhois(Exception):
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
+
 #static vars
 numWorkerThreads_lock = threading.Lock()
 numWorkerThreads = 0
@@ -77,8 +86,6 @@ class WhoisResult:
             if word in lower_data:
                 return True
     return False
-        
-
 
   def addAttempt(self,attempt):
     self.attempts.append(attempt)
@@ -101,9 +108,12 @@ class WhoisResult:
       log += attempt.getLogData()
     return log
 
-  def getData(self):
+  def getData(self,all_data=True):
     """Returnes the string response of the last response on the last attempt"""
-    return self.attempts[-1].getResponse()
+    if all_data:
+        return self.attempts[-1].getResponse()
+    else:
+        return self.attempts[-1].getLastResponse()
 
   def numAttempts(self):
     return len(self.attempts)
@@ -196,7 +206,7 @@ class Proxy:
     self.ready = False
     self.errors = 0
     self.client = proxywhois.NICClient()
-    self.history = dict() #TODO make more itelegent
+    self.history = dict() #TODO make more iteligent
     self.delay = 20 # delay in secconds to wait before reusing the same proxy
 
   def connect(self):
@@ -240,23 +250,25 @@ class Proxy:
     from the proxywhois class"""
     if not self.ready:
       return False
-    # this is the maximum amout of tmes we will recurse looking for 
+    # this is the maximum amout of times we will recurse looking for 
     # a thin whois server to reffer us
     recurse_level = 2
     whois_server = self.client.choose_server(record.domain)
     while (recurse_level > 0) and (whois_server != None):
       if whois_server in self.history:
         tdelta = time.time() - self.history[whois_server]
-        #TODO testing not limiting first level whois
+        #testing not limiting first level whois
         if recurse_level != 2 and tdelta < self.delay:
           print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
-          time.sleep(self.delay-tdelta)
+          time.sleep(self.delay-tdelta) #TODO dont ever sleep
       self.history[whois_server] = time.time()
       response = WhoisResponse(whois_server)
       data = self.client.whois(record.domain,whois_server,0)
-      if debug:
-        if data == None or len(data) < 1:
-          print "Error: Empty response recieved"
+      if data == None or len(data) < 1:
+        error = "Error: Empty response recieved for domain: " + record.domain +" on server: "+ whois_server
+        if debug:
+            print error
+        raise NullWhois(error)
       response.setResponse(data)
       record.getLastAttempt().addResponse(response)
       recurse_level -= 1
@@ -274,6 +286,7 @@ class WhoisThread(threading.Thread):
     self.proxy = proxy
     self.save_queue = save
     self.running = True
+    self.working = False
 
   def fail(self,record,error):
     self.proxy.errors += 1
@@ -305,6 +318,7 @@ class WhoisThread(threading.Thread):
     while self.running:
       #get next host
       record = self.queue.get()
+      self.working = True
       record.addAttempt(WhoisAttempt(self.proxy))
       try:
         self.proxy.whois(record)
@@ -323,6 +337,10 @@ class WhoisThread(threading.Thread):
         #bad domain name
         error = "Invalid domain: " + record.domain
         self.fail(record,error)
+      except NullWhois as e:
+          print "caught null whois exception"
+          record.addError(str(e))
+          self.queue.put(record)
       except Exception as e:
         if debug:
           traceback.print_exc()
@@ -330,22 +348,22 @@ class WhoisThread(threading.Thread):
         self.fail(record,error)
       else:
         record.current_attempt.success = True
-        if debug:
-            if record.valid():
-                print "SUCSESS: [" + record.domain + "]"
-                #TODO check for minimal validity info
-                self.save_queue.put(record)
-            else:
-                error =  "INVALID RESULT: [" + record.domain + "]"
+        if record.valid():
+            #if debug:
+                #print "SUCSESS: [" + record.domain + "]"
+            #check for minimal validity info
+            self.save_queue.put(record)
+        else:
+            error =  "INVALID RESULT: [" + record.domain + "]"
+            if debug:
                 print error
-                record.addError(error);
-                self.queue.put(record)
+            record.addError(error);
+            self.queue.put(record)
       finally:
         #inform the queue we are done
         self.queue.task_done()
+        self.working = False
 
-      #if not self.queue.empty() and self.running:
-      #time.sleep(20) #TODO change this to be dynamic
     decrementWorkerThreadCount()
 
 

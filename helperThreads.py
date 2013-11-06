@@ -16,9 +16,17 @@ debug = True
 #threads and keeping track of thir running status
 class ManagerThread(threading.Thread):
 
-  def getWorkerThreadCount(self):
+  def getActiveThreadCount(self):
     return whoisThread.getWorkerThreadCount();
 
+  def getWorkingThreadCount(self):
+      count = 0
+      for t in self.threads:
+          if t and t.working:
+              count += 1
+      return count
+
+  
   def __init__(self,proxy_list,domain_list):
     threading.Thread.__init__(self)
     self.proxy_list = proxy_list
@@ -28,6 +36,7 @@ class ManagerThread(threading.Thread):
     self.input_thread = None
     self.save_thread = None
     self.ready = False
+    self.threads = list()
 
   def getQueueSize(self):
     return self.input_queue.qsize()
@@ -54,6 +63,7 @@ class ManagerThread(threading.Thread):
               proxy = whoisThread.Proxy(s[0],i,whoisThread.socks.PROXY_TYPE_HTTP)
               t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
               t.start()
+              self.threads.append(t)
     except IOError:
       print "Unable to open proxy file: " + self.proxy_list
       return

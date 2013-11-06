@@ -15,7 +15,8 @@ def printStatus(t):
     print "| Domains: "+ str(t.input_thread.getDomainCount())
     print "| Failures:  "+ str(t.save_thread.getNumFails())
     print "| Saved:  "+ str(t.save_thread.getNumSaved())
-    print "| Worker Threads: "+ str(t.getWorkerThreadCount())
+    print "| Active Threads: "+ str(t.getActiveThreadCount())
+    print "| Working Threads: "+ str(t.getWorkingThreadCount())
     print "| Queue size: "+ str(t.getQueueSize())
     print "| Lookups per second: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
     print "| Running time: "+ str(delta)
@@ -28,16 +29,16 @@ def run(proxy_list,domain_list):
   start_time = time.time()
   t.start()
 
-  #wait for threads to get ready and settle
-  if not t.ready:
+  print "Waiting for threads to settle"
+  while not t.ready:
     time.sleep(0.1)
 
   try:
-    while t.getWorkerThreadCount() >= 1 and t.isAlive():
+    while t.getActiveThreadCount() >= 1 and t.isAlive():
       if debug:
         printStatus(t)
       time.sleep(1) # this is ugly
-    if (t.getWorkerThreadCount() == 0):
+    if (t.getActiveThreadCount() == 0):
       print "No valid Proxy threads running!!"
   except KeyboardInterrupt:
     print "Keyboard Interrupt... Exiting"
