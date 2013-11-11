@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-import sys
 import time
 from helperThreads import ManagerThread
 from datetime import timedelta
+import argparse
 
 debug = True
 start_time = time.time()
@@ -15,6 +15,7 @@ def printStatus(t):
     print "| Domains: "+ str(t.input_thread.getDomainCount())
     print "| Failures:  "+ str(t.save_thread.getNumFails())
     print "| Saved:  "+ str(t.save_thread.getNumSaved())
+    print "| Skipped:  "+ str(t.input_thread.getNumSkipped())
     print "| Active Threads: "+ str(t.getActiveThreadCount())
     print "| Working Threads: "+ str(t.getWorkingThreadCount())
     print "| Queue size: "+ str(t.getQueueSize())
@@ -23,15 +24,15 @@ def printStatus(t):
     print "|----------------------"
 
 
-def run(proxy_list,domain_list):
-  t = ManagerThread(proxy_list,domain_list)
+def run(proxy_list,domain_list,out,nt,skip):
+  t = ManagerThread(proxy_list,domain_list,nt,out,skip)
   t.daemon = True #required for ctrl-c exit
   start_time = time.time()
   t.start()
 
   print "Waiting for threads to settle"
   while not t.ready:
-    time.sleep(0.1)
+    time.sleep(0.2)
 
   try:
     while t.getActiveThreadCount() >= 1 and t.isAlive():
@@ -54,8 +55,13 @@ def run(proxy_list,domain_list):
 
 
 if __name__ == '__main__':
-  if not len(sys.argv) == 3:
-    print "usage: " + sys.argv[0] + " <proxy list file> <domain list file>"
-    exit()
-  run(sys.argv[1],sys.argv[2])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("proxy_list",help="file containign a list of http proxies and ports")
+    parser.add_argument("domain_list",help="file containing a list of domains to use")
+    parser.add_argument("-np",help="Maximum number of proxies to use. Default: 0/All",type=int,default=0)
+    parser.add_argument("-s",help="Skip domains that already have results. Default: false",action='store_true',default=False)
+    parser.add_argument("-o",help="Output directory to store results. Default: out/",default="out")
+    args = parser.parse_args()
+
+    run(args.proxy_list,args.domain_list,args.o,args.np,args.s)
 

@@ -4,6 +4,7 @@ import socks
 import sys #for debugging
 import time
 import traceback
+import re
 
 debug = True
 
@@ -78,13 +79,10 @@ class WhoisResult:
 
   def valid(self):
     '''performs quick checking to verify that the data we got may contain some valid data'''
-    #check for domain exp date
-    words = ['expiration','expiry','expires','email']
-    if self.numAttempts() > 0:
-        lower_data = self.getData().lower()
-        for word in words:
-            if word in lower_data:
-                return True
+    #search for email
+    match = re.search(r'[\w.-]+@[\w.-]+', self.getData())
+    if match:
+        return True
     return False
 
   def addAttempt(self,attempt):
@@ -265,7 +263,7 @@ class Proxy:
       response = WhoisResponse(whois_server)
       data = self.client.whois(record.domain,whois_server,0)
       if data == None or len(data) < 1:
-        error = "Error: Empty response recieved for domain: " + record.domain +" on server: "+ whois_server
+        error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
         if debug:
             print error
         raise NullWhois(error)
@@ -306,12 +304,9 @@ class WhoisThread(threading.Thread):
       print "WARNING: Failed to connect to proxy: " + str(self.proxy)
       decrementWorkerThreadCount()
       return
-    else:
-      if debug:
-        print "Thread running with proxy: "+ str(self.proxy)
 
     if not addRemoteProxyIP(self.proxy.external_ip):
-      print "WARNING: Proxy is already being used"
+      print "WARNING: Proxy is already being used with ip: "+self.proxy.server+" on port: "+str(self.proxy.port)+"with remote IP: "+self.proxy.external_ip
       decrementWorkerThreadCount()
       return
     

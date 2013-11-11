@@ -4,9 +4,10 @@ import time
 import whoisThread
 import os
 
-output_folder = "out/results/"
-log_folder = "out/logs/"
-fail_file = "out/fail.txt"
+output_folder = "results/"
+log_folder = "logs/"
+fail_file = "fail.txt"
+save_ext = "whois"
 max_queue_size = 10000
 
 
@@ -17,9 +18,12 @@ debug = True
 class ManagerThread(threading.Thread):
 
   def getActiveThreadCount(self):
+    '''returns the number of threads spawned'''
     return whoisThread.getWorkerThreadCount();
 
+
   def getWorkingThreadCount(self):
+      '''return the number of threads that are actually doing something'''
       count = 0
       for t in self.threads:
           if t and t.working:
@@ -27,10 +31,13 @@ class ManagerThread(threading.Thread):
       return count
 
   
-  def __init__(self,proxy_list,domain_list):
+  def __init__(self,proxy_list,domain_list,np,out_dir,skip=False):
     threading.Thread.__init__(self)
     self.proxy_list = proxy_list
     self.domain_list = domain_list
+    self.nt = np
+    self.output_dir = out_dir+"/"
+    self.skip = skip
     self.input_queue = Queue(maxsize=max_queue_size)
     self.save_queue = Queue(maxsize=max_queue_size)
     self.input_thread = None
@@ -43,34 +50,35 @@ class ManagerThread(threading.Thread):
 
   def run(self):
     #startSaveThread
-    self.save_thread = SaveThread(log_folder,output_folder,fail_file,self.save_queue)
+    self.save_thread = SaveThread(self.output_dir+log_folder, self.output_dir+output_folder, self.output_dir+fail_file, self.save_queue)
     self.save_thread.start()
 
     #start whois threads
     try:
       for l in open(self.proxy_list,'r'):
-        l = l.strip()
-        if l[0] != '#': #if not a comment
-          s = l.split()
-          if len(s) == 2:
-            #TODO validate!
-            try:
-              i = int(s[1])
-            except ValueError:
-              print "Proxy "+ s[0] + " has non-int port"
-            else:
-              #TODO add better proxy type handling
-              proxy = whoisThread.Proxy(s[0],i,whoisThread.socks.PROXY_TYPE_HTTP)
-              t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
-              t.start()
-              self.threads.append(t)
+        if self.nt == 0 or len(self.threads) < self.nt:
+          l = l.strip()
+          if l[0] != '#': #if not a comment
+            s = l.split()
+            if len(s) == 2:
+                #TODO validate!
+              try:
+                i = int(s[1])
+              except ValueError:
+                print "Proxy "+ s[0] + " has non-int port"
+              else:
+                #TODO add better proxy type handling
+                proxy = whoisThread.Proxy(s[0],i,whoisThread.socks.PROXY_TYPE_HTTP)
+                t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
+                t.start()
+                self.threads.append(t)
     except IOError:
       print "Unable to open proxy file: " + self.proxy_list
       return
     print str(whoisThread.getWorkerThreadCount()) + " worker threads started"
 
     #now start EnqueueThread
-    self.input_thread = EnqueueThread(self.domain_list,self.input_queue)
+    self.input_thread = EnqueueThread(self.domain_list,self.input_queue,self.output_dir+output_folder,self.skip)
     self.input_thread.start()
 
     #wait for threads to settle
@@ -96,12 +104,23 @@ class ManagerThread(threading.Thread):
 #this is a simple thread to read input lines from a 
 #file and add them to the queue for prossessing
 class EnqueueThread(threading.Thread):
-  def __init__(self,filename,queue):
+  def __init__(self,filename,queue,out="./",skip=False):
     threading.Thread.__init__(self)
     self._filename = filename
     self._queue = queue
     self._domains = 0
     self.valid = False
+    self.skip = skip
+    self.skipped = 0
+    self.out = out
+
+  def getNumSkipped(self):
+      return self.skipped
+
+  def skipDomain(self,domain):
+      print "skip? "+self.out+domain+"."+save_ext
+      print os.path.isfile(self.out+domain+"."+save_ext)
+      return os.path.isfile(self.out+domain+"."+save_ext)
 
   def getDomainCount(self):
     return self._domains
@@ -115,10 +134,13 @@ class EnqueueThread(threading.Thread):
       print "Unable to open file: "+ self._filename
       return
     for l in fh:
-      l = l.strip()
+      l = l.strip().upper()
       if len(l) > 3:
-        self._queue.put(whoisThread.WhoisResult(l))
-        self._domains +=1
+        if not (self.skip and self.skipDomain(l)):
+          self._queue.put(whoisThread.WhoisResult(l))
+          self._domains +=1
+        else:
+          self.skipped +=1
 
 #runs in the background and saves data as we collect it 
 class SaveThread(threading.Thread):
@@ -180,7 +202,7 @@ class SaveThread(threading.Thread):
 
   def saveData(self,record):
     try:
-      f = open(self._out_folder+record.domain,'w')
+      f = open(self._out_folder+record.domain+"."+save_ext,'w')
       f.write(record.getData())
       f.close()
       return True
