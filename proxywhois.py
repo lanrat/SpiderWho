@@ -69,10 +69,10 @@ class NICClient(object) :
         #print 'parameters:', buf, 'hostname', hostname
         nhost = None
         parts_index = 1
-        start = buf.find(NICClient.WHOIS_SERVER_ID)
+        start = buf.rfind(NICClient.WHOIS_SERVER_ID)
         #print 'start', start
         if (start == -1):
-            start = buf.find(NICClient.WHOIS_ORG_SERVER_ID)
+            start = buf.rfind(NICClient.WHOIS_ORG_SERVER_ID)
             parts_index = 2
 
         if (start > -1):  
@@ -93,6 +93,12 @@ class NICClient(object) :
                     nhost = nichost
                     break
         return nhost
+
+    def TLDSpecificQuery(self,tld,query,server):
+        tld = tld.lower()
+        if tld in ['com','net','edu'] and server.endswith(NICClient.QNICHOST_TAIL):
+            query = "="+query
+        return query
 
     def whois(self, query, hostname, flags):
         """Perform initial lookup with TLD whois server
@@ -116,6 +122,11 @@ class NICClient(object) :
         """send takes bytes as an input
         """
         queryBytes = None
+
+        tld = self.getTLD(query)
+        if tld:
+            query = self.TLDSpecificQuery(tld,query,hostname)
+
         if (hostname == NICClient.DENICHOST):
             #print 'the domain is in NIC DENIC'
             queryBytes = ("-T dn,ace -C UTF-8 " + query + "\r\n").encode()
@@ -146,9 +157,8 @@ class NICClient(object) :
             response += self.whois(query, nhost, 0)
         #print 'returning whois response'
         return response.decode()
-   
-    def choose_server(self, domain):
-        """Choose initial lookup NIC host"""
+
+    def getTLD(self, domain):
         if (domain.endswith("-NORID")):
             return NICClient.NORIDHOST
         pos = domain.rfind('.')
@@ -156,10 +166,16 @@ class NICClient(object) :
             return None
         tld = domain[pos+1:]
         if (tld[0].isdigit()):
-            return NICClient.ANICHOST
+            return None
+        return tld
    
-        return tld + NICClient.QNICHOST_TAIL
-   
+    def choose_server(self, domain):
+        """Choose initial lookup NIC host"""
+        tld = self.getTLD(domain)
+        if tld:
+            return tld + NICClient.QNICHOST_TAIL
+        return NICClient.ANICHOST
+    
     def whois_lookup(self, options, query_arg, flags):
         """Main entry point: Perform initial lookup on TLD whois server,
         or other server to get region-specific whois server, then if quick

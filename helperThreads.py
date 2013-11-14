@@ -3,6 +3,7 @@ from Queue import Queue
 import time
 import whoisThread
 import os
+import urlparse
 
 output_folder = "results/"
 log_folder = "logs/"
@@ -59,23 +60,23 @@ class ManagerThread(threading.Thread):
         if self.nt == 0 or len(self.threads) < self.nt:
           l = l.strip()
           if l[0] != '#': #if not a comment
-            s = l.split()
-            if len(s) == 2:
-                #TODO validate!
-              try:
-                i = int(s[1])
-              except ValueError:
-                print "Proxy "+ s[0] + " has non-int port"
-              else:
-                #TODO add better proxy type handling
-                proxy = whoisThread.Proxy(s[0],i,whoisThread.socks.PROXY_TYPE_HTTP)
+            url = urlparse.urlparse(l)
+            proxy_type = None
+            if url.scheme == "http":
+                proxy_type = whoisThread.socks.PROXY_TYPE_HTTP
+            elif url.scheme == "socks":
+                proxy_type = whoisThread.socks.PROXY_TYPE_SOCKS4
+            else:
+                print "Unknown Proxy Type"
+            if proxy_type:
+                proxy = whoisThread.Proxy(url.hostname,url.port,whoisThread.socks.PROXY_TYPE_HTTP)
                 t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
                 t.start()
                 self.threads.append(t)
     except IOError:
       print "Unable to open proxy file: " + self.proxy_list
       return
-    print str(whoisThread.getWorkerThreadCount()) + " worker threads started"
+    print str(whoisThread.getWorkerThreadCount()) + " threads started"
 
     #now start EnqueueThread
     self.input_thread = EnqueueThread(self.domain_list,self.input_queue,self.output_dir+output_folder,self.skip)
@@ -118,8 +119,6 @@ class EnqueueThread(threading.Thread):
       return self.skipped
 
   def skipDomain(self,domain):
-      print "skip? "+self.out+domain+"."+save_ext
-      print os.path.isfile(self.out+domain+"."+save_ext)
       return os.path.isfile(self.out+domain+"."+save_ext)
 
   def getDomainCount(self):

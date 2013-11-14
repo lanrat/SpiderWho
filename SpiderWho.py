@@ -61,6 +61,7 @@ if __name__ == '__main__':
     parser.add_argument("-np",help="Maximum number of proxies to use. Default: 0/All",type=int,default=0)
     parser.add_argument("-s",help="Skip domains that already have results. Default: false",action='store_true',default=False)
     parser.add_argument("-o",help="Output directory to store results. Default: out/",default="out")
+    parser.add_argument("-d",help="Enable debug printing",action='store_true',default=False)
     args = parser.parse_args()
 
     run(args.proxy_list,args.domain_list,args.o,args.np,args.s)

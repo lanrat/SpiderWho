@@ -5,6 +5,7 @@ import sys #for debugging
 import time
 import traceback
 import re
+import urlparse
 
 debug = True
 
@@ -140,7 +141,7 @@ class WhoisAttempt:
     log = list()
     log.append("Timestamp: "+ str(self.timestamp))
     log.append("Proxy: "+ self.proxy.getLog())
-    log.append("Sucsess: "+ str(self.success))
+    log.append("Success: "+ str(self.success))
     log.append("Responses: "+str(len(self.responses)))
     for response in self.responses:
       log += response.getLogData()
@@ -226,22 +227,23 @@ class Proxy:
 
   def updateExternalIP(self):
     """this method uses the proxy socket to get the remote IP on that proxy"""
-    host = "curlmyip.com"
-    #host = "ipaddr.me"
-    #host = "icanhazip.com"
-    #host = "bot.whatismyipaddress.com"
-    #host = "myip.dnsdynamic.com"
-    try:
-      s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
-      s.setproxy(self.proxy_type,self.server,self.port)
-      s.connect((host,80))
-      s.send('GET /\r\n\r\n')
-      r = s.recv(4096)
-    except socks.GeneralProxyError as e:
-      return None
-    else:
-      self.external_ip = r.split()[-1]
-      return self.external_ip
+    host = "http://www.sysnet.ucsd.edu/cgi-bin/whoami.sh"
+    url = urlparse.urlparse(host)
+    for i in range(3): #try 3 times
+      try:
+        s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+        s.setproxy(self.proxy_type,self.server,self.port)
+        s.connect((url.hostname,80))
+        s.send('GET '+url.path+' \nHost: '+url.hostname+'\r\n\r\n')
+        r = s.recv(4096)
+      except Exception as e:
+        time.sleep(0.1)
+      else:
+        if len(r):
+            self.external_ip = r.split()[-1]
+            return self.external_ip
+        time.sleep(0.1)
+    return None
 
   def whois(self,record):
     """This fucnction is a replacment of whois_lookup
@@ -255,9 +257,11 @@ class Proxy:
     while (recurse_level > 0) and (whois_server != None):
       if whois_server in self.history:
         tdelta = time.time() - self.history[whois_server]
-        #testing not limiting first level whois
+        #not limiting first level whois, thin-server
+        #TODO don't do this, it may break .org, it would be better to implement an backoff system
         if recurse_level != 2 and tdelta < self.delay:
-          print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
+          if debug:
+            print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
           time.sleep(self.delay-tdelta) #TODO dont ever sleep
       self.history[whois_server] = time.time()
       response = WhoisResponse(whois_server)
@@ -306,7 +310,7 @@ class WhoisThread(threading.Thread):
       return
 
     if not addRemoteProxyIP(self.proxy.external_ip):
-      print "WARNING: Proxy is already being used with ip: "+self.proxy.server+" on port: "+str(self.proxy.port)+"with remote IP: "+self.proxy.external_ip
+      print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
       decrementWorkerThreadCount()
       return
     
@@ -333,27 +337,19 @@ class WhoisThread(threading.Thread):
         error = "Invalid domain: " + record.domain
         self.fail(record,error)
       except NullWhois as e:
-          print "caught null whois exception"
-          record.addError(str(e))
-          self.queue.put(record)
+          self.fail(record,str(e))
       except Exception as e:
         if debug:
           traceback.print_exc()
         error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
         self.fail(record,error)
       else:
-        record.current_attempt.success = True
         if record.valid():
-            #if debug:
-                #print "SUCSESS: [" + record.domain + "]"
-            #check for minimal validity info
+            record.current_attempt.success = True
             self.save_queue.put(record)
         else:
-            error =  "INVALID RESULT: [" + record.domain + "]"
-            if debug:
-                print error
-            record.addError(error);
-            self.queue.put(record)
+            error =  "INVALID RESULT: [" + record.domain + "] Failed validity check"
+            self.fail(record,error)
       finally:
         #inform the queue we are done
         self.queue.task_done()
