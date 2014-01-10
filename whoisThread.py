@@ -17,12 +17,20 @@ class NullWhois(Exception):
   def __str__(self):
     return repr(self.value)
 
+class WhoisTimeoutException(Exception):
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
+
 
 #static vars
 numWorkerThreads_lock = threading.Lock()
 numWorkerThreads = 0
 proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
+socket_timeout = 30 #seconds
 
 
 def addRemoteProxyIP(ip):
@@ -206,7 +214,7 @@ class Proxy:
     self.errors = 0
     self.client = proxywhois.NICClient()
     self.history = dict() #TODO make more iteligent
-    self.delay = 20 # delay in secconds to wait before reusing the same proxy
+    self.delay = 20 # delay in seconds to wait before reusing the same proxy
 
   def connect(self):
     self.updateExternalIP()
@@ -232,6 +240,7 @@ class Proxy:
     for i in range(3): #try 3 times
       try:
         s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+        s.settimeout(socket_timeout)
         s.setproxy(self.proxy_type,self.server,self.port)
         s.connect((url.hostname,80))
         s.send('GET '+url.path+' \nHost: '+url.hostname+'\r\n\r\n')
@@ -257,20 +266,25 @@ class Proxy:
     while (recurse_level > 0) and (whois_server != None):
       if whois_server in self.history:
         tdelta = time.time() - self.history[whois_server]
-        #not limiting first level whois, thin-server
-        #TODO don't do this, it may break .org, it would be better to implement an backoff system
-        if recurse_level != 2 and tdelta < self.delay:
-          if debug:
-            print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" secconds"
+        if tdelta < self.delay:
+          #if debug:
+          #  print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" seconds"
           time.sleep(self.delay-tdelta) #TODO dont ever sleep
       self.history[whois_server] = time.time()
       response = WhoisResponse(whois_server)
-      data = self.client.whois(record.domain,whois_server,0)
+      data = None
+      try:
+          data = self.client.whois(record.domain,whois_server,0)
+      except:
+          pass
       if data == None or len(data) < 1:
         error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
         if debug:
             print error
         raise NullWhois(error)
+      if data.count('\n') < 4: #if we got less than 4 lines in the response
+        error = "Error: recieved small response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
+        raise WhoisTimeoutException(error)
       response.setResponse(data)
       record.getLastAttempt().addResponse(response)
       recurse_level -= 1
@@ -281,7 +295,7 @@ class Proxy:
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-  def __init__(self,proxy,queue,save):
+  def __init__(self,proxy,queue,save,validCheck):
     threading.Thread.__init__(self)
     self.daemon = True
     self.queue = queue
@@ -289,6 +303,7 @@ class WhoisThread(threading.Thread):
     self.save_queue = save
     self.running = True
     self.working = False
+    self.validCheck = validCheck
 
   def fail(self,record,error):
     self.proxy.errors += 1
@@ -338,13 +353,15 @@ class WhoisThread(threading.Thread):
         self.fail(record,error)
       except NullWhois as e:
           self.fail(record,str(e))
+      except WhoisTimeoutException as e:
+          self.fail(record,str(e))
       except Exception as e:
         if debug:
           traceback.print_exc()
         error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
         self.fail(record,error)
       else:
-        if record.valid():
+        if (not self.validCheck) or record.valid():
             record.current_attempt.success = True
             self.save_queue.put(record)
         else:

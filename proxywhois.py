@@ -2,6 +2,7 @@
 #taken from pywhois class with some modifications
 
 from libs.SocksiPy import socks
+socket_timeout = 30 #seconds
 
 debug = False
 
@@ -110,6 +111,7 @@ class NICClient(object) :
           print 'parameters given:', query, hostname, flags
         #pdb.set_trace()
         s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
+        s.settimeout(socket_timeout)
 
         #added code for proxy
         if (self.use_proxy):

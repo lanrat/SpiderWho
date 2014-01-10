@@ -32,13 +32,14 @@ class ManagerThread(threading.Thread):
       return count
 
   
-  def __init__(self,proxy_list,domain_list,np,out_dir,skip=False):
+  def __init__(self,proxy_list,domain_list,np,out_dir,skip=False,validCheck=False):
     threading.Thread.__init__(self)
     self.proxy_list = proxy_list
     self.domain_list = domain_list
     self.nt = np
     self.output_dir = out_dir+"/"
     self.skip = skip
+    self.validCheck = validCheck
     self.input_queue = Queue(maxsize=max_queue_size)
     self.save_queue = Queue(maxsize=max_queue_size)
     self.input_thread = None
@@ -70,7 +71,7 @@ class ManagerThread(threading.Thread):
                 print "Unknown Proxy Type"
             if proxy_type:
                 proxy = whoisThread.Proxy(url.hostname,url.port,whoisThread.socks.PROXY_TYPE_HTTP)
-                t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
+                t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue,self.validCheck)
                 t.start()
                 self.threads.append(t)
     except IOError:

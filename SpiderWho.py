@@ -24,8 +24,8 @@ def printStatus(t):
     print "|----------------------"
 
 
-def run(proxy_list,domain_list,out,nt,skip):
-  t = ManagerThread(proxy_list,domain_list,nt,out,skip)
+def run(proxy_list,domain_list,out,nt,skip,validCheck):
+  t = ManagerThread(proxy_list,domain_list,nt,out,skip,validCheck)
   t.daemon = True #required for ctrl-c exit
   start_time = time.time()
   t.start()
@@ -62,7 +62,8 @@ if __name__ == '__main__':
     parser.add_argument("-s",help="Skip domains that already have results. Default: false",action='store_true',default=False)
     parser.add_argument("-o",help="Output directory to store results. Default: out/",default="out")
     parser.add_argument("-d",help="Enable debug printing",action='store_true',default=False)
+    parser.add_argument("-v",help="Enable Email validity check",action='store_true',default=False)
     args = parser.parse_args()
 
-    run(args.proxy_list,args.domain_list,args.o,args.np,args.s)
+    run(args.proxy_list,args.domain_list,args.o,args.np,args.s,args.v)
 
