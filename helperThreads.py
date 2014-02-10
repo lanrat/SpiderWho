@@ -4,15 +4,8 @@ import time
 import whoisThread
 import os
 import urlparse
+import config
 
-output_folder = "results/"
-log_folder = "logs/"
-fail_file = "fail.txt"
-save_ext = "whois"
-max_queue_size = 10000
-
-
-debug = True
 
 #this thread is in charge of starting all the other 
 #threads and keeping track of thir running status
@@ -32,16 +25,10 @@ class ManagerThread(threading.Thread):
       return count
 
   
-  def __init__(self,proxy_list,domain_list,np,out_dir,skip=False,validCheck=False):
+  def __init__(self):
     threading.Thread.__init__(self)
-    self.proxy_list = proxy_list
-    self.domain_list = domain_list
-    self.nt = np
-    self.output_dir = out_dir+"/"
-    self.skip = skip
-    self.validCheck = validCheck
-    self.input_queue = Queue(maxsize=max_queue_size)
-    self.save_queue = Queue(maxsize=max_queue_size)
+    self.input_queue = Queue(maxsize=config.max_queue_size)
+    self.save_queue = Queue(maxsize=config.max_queue_size)
     self.input_thread = None
     self.save_thread = None
     self.ready = False
@@ -52,13 +39,13 @@ class ManagerThread(threading.Thread):
 
   def run(self):
     #startSaveThread
-    self.save_thread = SaveThread(self.output_dir+log_folder, self.output_dir+output_folder, self.output_dir+fail_file, self.save_queue)
+    self.save_thread = SaveThread(self.save_queue)
     self.save_thread.start()
 
     #start whois threads
     try:
-      for l in open(self.proxy_list,'r'):
-        if self.nt == 0 or len(self.threads) < self.nt:
+      for l in open(config.proxy_list,'r'):
+        if config.num_proxies == 0 or len(self.threads) < config.num_proxies:
           l = l.strip()
           if l[0] != '#': #if not a comment
             url = urlparse.urlparse(l)
@@ -71,16 +58,16 @@ class ManagerThread(threading.Thread):
                 print "Unknown Proxy Type"
             if proxy_type:
                 proxy = whoisThread.Proxy(url.hostname,url.port,whoisThread.socks.PROXY_TYPE_HTTP)
-                t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue,self.validCheck)
+                t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
                 t.start()
                 self.threads.append(t)
     except IOError:
-      print "Unable to open proxy file: " + self.proxy_list
+      print "Unable to open proxy file: " + config.proxy_list
       return
     print str(whoisThread.getWorkerThreadCount()) + " threads started"
 
     #now start EnqueueThread
-    self.input_thread = EnqueueThread(self.domain_list,self.input_queue,self.output_dir+output_folder,self.skip)
+    self.input_thread = EnqueueThread(self.input_queue)
     self.input_thread.start()
 
     #wait for threads to settle
@@ -92,12 +79,12 @@ class ManagerThread(threading.Thread):
     while self.input_thread.isAlive():
       time.sleep(0.1)
     
-    if debug:
+    if config.debug:
       print "Done loading domains to queue"
 
     self.input_queue.join()
 
-    if debug:
+    if config.debug:
       print "Saving results"
     self.save_queue.join()
 
@@ -106,37 +93,35 @@ class ManagerThread(threading.Thread):
 #this is a simple thread to read input lines from a 
 #file and add them to the queue for prossessing
 class EnqueueThread(threading.Thread):
-  def __init__(self,filename,queue,out="./",skip=False):
+  def __init__(self,queue):
     threading.Thread.__init__(self)
-    self._filename = filename
     self._queue = queue
     self._domains = 0
     self.valid = False
-    self.skip = skip
     self.skipped = 0
-    self.out = out
+    self._results_folder = config.output_folder+config.results_folder
 
   def getNumSkipped(self):
       return self.skipped
 
   def skipDomain(self,domain):
-      return os.path.isfile(self.out+domain+"."+save_ext)
+      return os.path.isfile(self._results_folder+"."+config.save_ext)
 
   def getDomainCount(self):
     return self._domains
 
   def run(self):
     try:
-      fh = open(self._filename,'r')
+      fh = open(config.domain_list,'r')
       self.valid = True
     except IOError: 
       self.valid = False
-      print "Unable to open file: "+ self._filename
+      print "Unable to open file: "+ config.domain_list
       return
     for l in fh:
       l = l.strip().upper()
       if len(l) > 3:
-        if not (self.skip and self.skipDomain(l)):
+        if not (config.skip_done and self.skipDomain(l)):
           self._queue.put(whoisThread.WhoisResult(l))
           self._domains +=1
         else:
@@ -144,24 +129,30 @@ class EnqueueThread(threading.Thread):
 
 #runs in the background and saves data as we collect it 
 class SaveThread(threading.Thread):
-  def __init__(self,log_folder,out_folder,fail_filename,queue):
+  def __init__(self,queue):
     threading.Thread.__init__(self)
-    self._out_folder = out_folder
-    self._log_folder = log_folder
-    self._fail_filename = fail_filename
     self._queue = queue
     self._num_saved = 0
+    self._num_good = 0
     self._num_faild = 0
-    if not os.path.exists(out_folder):
-      os.makedirs(out_folder)
-    if not os.path.exists(log_folder):
-      os.makedirs(log_folder)
+    self._fail_filepath =  config.output_folder + config.fail_filename
+    self._log_folder = config.output_folder + config.log_folder
+    self._results_folder = config.output_folder + config.results_folder
+    if not os.path.exists(config.output_folder):
+      os.makedirs(config.output_folder)
+    if not os.path.exists(self._log_folder):
+      os.makedirs(self._log_folder)
+    if not os.path.exists(self._results_folder):
+      os.makedirs(self._results_folder)
 
   def getNumFails(self):
     return self._num_faild
 
   def getNumSaved(self):
     return self._num_saved
+
+  def getNumGood(self):
+    return self._num_good
 
   def run(self):
     while True:
@@ -189,11 +180,11 @@ class SaveThread(threading.Thread):
 
 
   def saveFail(self,record):
-    self._num_faild += 1
     try:
-      fail_file = open(self._fail_filename,'a+')
+      fail_file = open(self._fail_filepath,'a+')
       fail_file.write(record.domain+'\n')
       fail_file.close()
+      self._num_faild += 1
       return True
     except IOError:
       print "Unabe to write to fail file"
@@ -202,9 +193,10 @@ class SaveThread(threading.Thread):
 
   def saveData(self,record):
     try:
-      f = open(self._out_folder+record.domain+"."+save_ext,'w')
+      f = open(self._results_folder+record.domain+"."+config.save_ext,'w')
       f.write(record.getData())
       f.close()
+      self._num_good += 1
       return True
     except IOError:
       print "Unabe to write "+record.domain+" data to file"

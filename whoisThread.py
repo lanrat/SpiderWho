@@ -6,9 +6,20 @@ import time
 import traceback
 import re
 import urlparse
+import config
+import string
 
-debug = True
-
+def convert_line_endings(temp, mode):
+    '''modes:  0 - Unix, 1 - Mac, 2 - DOS'''
+    if mode == 0:
+        temp = string.replace(temp, '\r\n', '\n')
+        temp = string.replace(temp, '\r', '\n')
+    elif mode == 1:
+        temp = string.replace(temp, '\r\n', '\r')
+        temp = string.replace(temp, '\n', '\r')
+    elif mode == 2:
+        temp = re.sub("\r(?!\n)|(?<!\r)\n", "\r\n", temp)
+    return temp
 
 #NULL whois result Exception
 class NullWhois(Exception):
@@ -22,6 +33,14 @@ class WhoisTimeoutException(Exception):
     self.value = value
   def __str__(self):
     return repr(self.value)
+
+class WhoisLinesException(Exception):
+  def __init__(self, value,data):
+    self.value = value
+    self.data = data
+  def __str__(self):
+    return repr(self.value)+"\n"+repr(self.data)
+
 
 
 
@@ -267,7 +286,7 @@ class Proxy:
       if whois_server in self.history:
         tdelta = time.time() - self.history[whois_server]
         if tdelta < self.delay:
-          #if debug:
+          #if config.debug:
           #  print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" seconds"
           time.sleep(self.delay-tdelta) #TODO dont ever sleep
       self.history[whois_server] = time.time()
@@ -279,13 +298,16 @@ class Proxy:
           pass
       if data == None or len(data) < 1:
         error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
-        if debug:
+        if config.debug:
             print error
         raise NullWhois(error)
-      if data.count('\n') < 4: #if we got less than 4 lines in the response
-        error = "Error: recieved small response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
-        raise WhoisTimeoutException(error)
       response.setResponse(data)
+      data = convert_line_endings(data,0)
+      nLines = data.count('\n')
+      if nLines < config.min_response_lines: #if we got less than 4 lines in the response
+        error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
+        raise WhoisLinesException(error,data)
+
       record.getLastAttempt().addResponse(response)
       recurse_level -= 1
       if recurse_level > 0:
@@ -295,7 +317,7 @@ class Proxy:
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-  def __init__(self,proxy,queue,save,validCheck):
+  def __init__(self,proxy,queue,save):
     threading.Thread.__init__(self)
     self.daemon = True
     self.queue = queue
@@ -303,14 +325,13 @@ class WhoisThread(threading.Thread):
     self.save_queue = save
     self.running = True
     self.working = False
-    self.validCheck = validCheck
 
   def fail(self,record,error):
     self.proxy.errors += 1
     record.addError(error)
-    if (debug):
+    if (config.debug):
       print "["+ str(self.proxy) +"] "+ error
-    if record.numAttempts() < 3:
+    if record.numAttempts() < config.max_attempts:
       self.queue.put(record)
     else:
       record.maxAttempts = True
@@ -355,13 +376,15 @@ class WhoisThread(threading.Thread):
           self.fail(record,str(e))
       except WhoisTimeoutException as e:
           self.fail(record,str(e))
+      except WhoisLinesException as e:
+          self.fail(record,str(e))
       except Exception as e:
-        if debug:
-          traceback.print_exc()
+        if config.debug:
+          raise e
         error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
         self.fail(record,error)
       else:
-        if (not self.validCheck) or record.valid():
+        if (not config.result_validCheck) or record.valid():
             record.current_attempt.success = True
             self.save_queue.put(record)
         else:
