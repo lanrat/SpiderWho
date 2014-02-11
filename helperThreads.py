@@ -106,7 +106,8 @@ class EnqueueThread(threading.Thread):
       return self.skipped
 
   def skipDomain(self,domain):
-      return os.path.isfile(self._results_folder+"."+config.save_ext)
+      path = self._results_folder+domain+"."+config.save_ext
+      return os.path.isfile(path)
 
   def getDomainCount(self):
     return self._domains

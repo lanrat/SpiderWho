@@ -55,8 +55,10 @@ def run():
     except KeyboardInterrupt:
         print "\nKeyboard Interrupt... Exiting"
     else:
+        printStatusData(t)
+        sys.stdout.write("\n")
         if config.debug:
-            print "\nDone!"
+            print "Done!"
     finally:
         if t.ready and t.input_thread.valid:
           if config.debug and t.getQueueSize() > 0:
