@@ -1,28 +1,36 @@
 #!/usr/bin/env python
 import time
 from helperThreads import ManagerThread
-from datetime import timedelta
+import datetime
 import argparse
 import config
+import sys
 
 
-def printStatus(t):
+def printStatusLine():
+    sys.stdout.write("Domains\tGood\tFail\tSaved\tSkipped\tActiveT\tWorkerT\tQueue\tLPS\tTime")
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
+def printStatusData(m):
     running_seconds = (time.time() - config.start_time)
-    delta  = timedelta(seconds=running_seconds)
-    print "|----------------------"
-    print "| Domains: "+ str(t.input_thread.getDomainCount())
-    print "| Saved:  "+ str(t.save_thread.getNumSaved())
-    print "| Good:  "+ str(t.save_thread.getNumGood())
-    print "| Failures:  "+ str(t.save_thread.getNumFails())
-    if config.skip_done:
-        print "| Skipped:  "+ str(t.input_thread.getNumSkipped())
-    print "| Active Threads: "+ str(t.getActiveThreadCount())
-    print "| Working Threads: "+ str(t.getWorkingThreadCount())
-    print "| Queue size: "+ str(t.getQueueSize())
-    print "| Lookups per second: "+ str(round((t.input_thread.getDomainCount()-t.getQueueSize())/running_seconds,2))
-    print "| Running time: "+ str(delta)
-    print "|----------------------"
+    
+    domains = m.input_thread.getDomainCount()
+    total_saved = m.save_thread.getNumSaved()
+    good_saved = m.save_thread.getNumGood()
+    fail_saved = m.save_thread.getNumFails()
+    skipped = m.input_thread.getNumSkipped()
+    active_threads = m.getActiveThreadCount()
+    worker_threads = m.getWorkingThreadCount()
+    queue_size = m.getQueueSize()
+    lps = round((m.input_thread.getDomainCount()-m.getQueueSize())/running_seconds,2)
+    running_time = str(datetime.timedelta(seconds=int(running_seconds)))
 
+    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" %
+            (domains, good_saved, fail_saved, total_saved, skipped, active_threads,
+                worker_threads, queue_size, lps, running_time))
+    sys.stdout.flush()
 
 def run():
     t = ManagerThread()
@@ -30,27 +38,28 @@ def run():
     config.start_time = time.time()
     t.start()
 
-    print "Waiting for threads to settle"
+    if config.debug:
+        print "Waiting for threads to settle"
     while not t.ready:
         time.sleep(0.2)
 
+    printStatusLine()
+    printStatusData(t)
+
     try:
       while t.getActiveThreadCount() >= 1 and t.isAlive():
-          if config.debug or True: #TODO TEMP
-              printStatus(t)
+          printStatusData(t)
           time.sleep(1)
       if (t.getActiveThreadCount() == 0):
           print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
-        print "Keyboard Interrupt... Exiting"
+        print "\nKeyboard Interrupt... Exiting"
     else:
         if config.debug:
-            print "Done!"
+            print "\nDone!"
     finally:
         if t.ready and t.input_thread.valid:
-          #real status output
-          printStatus(t)
-          if t.getQueueSize() > 0:
+          if config.debug and t.getQueueSize() > 0:
               print "Ending with non-empty queue!"
 
 

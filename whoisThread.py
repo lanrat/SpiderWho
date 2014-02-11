@@ -338,15 +338,19 @@ class WhoisThread(threading.Thread):
       self.save_queue.put(record)
 
   def run(self):
-    incrementWorkerThreadCount()
     #get and print my remote IP, also tests the proxy for usability
-    if not self.proxy.connect():
-      print "WARNING: Failed to connect to proxy: " + str(self.proxy)
-      decrementWorkerThreadCount()
-      return
+
+    #wait untill proxy is active if down
+    while not self.proxy.connect():
+        if config.debug:
+          print "WARNING: Failed to connect to proxy: " + str(self.proxy)
+        time.sleep(20)
+    
+    incrementWorkerThreadCount()
 
     if not addRemoteProxyIP(self.proxy.external_ip):
-      print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
+      if config.debug:
+        print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
       decrementWorkerThreadCount()
       return
     

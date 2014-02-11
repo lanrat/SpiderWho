@@ -64,7 +64,8 @@ class ManagerThread(threading.Thread):
     except IOError:
       print "Unable to open proxy file: " + config.proxy_list
       return
-    print str(whoisThread.getWorkerThreadCount()) + " threads started"
+    if config.debug:
+        print str(whoisThread.getWorkerThreadCount()) + " threads started"
 
     #now start EnqueueThread
     self.input_thread = EnqueueThread(self.input_queue)
