@@ -13,7 +13,7 @@ are permitted provided that the following conditions are met:
 3. Neither the name of Dan Haim nor the names of his contributors may be used
    to endorse or promote products derived from this software without specific
    prior written permission.
-   
+
 THIS SOFTWARE IS PROVIDED BY DAN HAIM "AS IS" AND ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -114,15 +114,15 @@ def setdefaultproxy(proxytype=None,addr=None,port=None,rdns=True,username=None,p
   """
   global _defaultproxy
   _defaultproxy = (proxytype,addr,port,rdns,username,password)
-  
+
 class socksocket(socket.socket):
   """socksocket([family[, type[, proto]]]) -> socket object
-  
+
   Open a SOCKS enabled socket. The parameters are the same as
   those of the standard socket init. In order for SOCKS to work,
   you must specify family=AF_INET, type=SOCK_STREAM and proto=0.
   """
-  
+
   def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, _sock=None):
     self.allow_direct = True
     _orgsocket.__init__(self,family,type,proto,_sock)
@@ -132,7 +132,7 @@ class socksocket(socket.socket):
       self.__proxy = (None, None, None, None, None, None)
     self.__proxysockname = None
     self.__proxypeername = None
-  
+
   def __recvall(self, bytes):
     """__recvall(bytes) -> data
     Receive EXACTLY the number of bytes requested from the socket.
@@ -142,7 +142,7 @@ class socksocket(socket.socket):
     while len(data) < bytes:
       data = data + self.recv(bytes-len(data))
     return data
-  
+
   def setproxy(self,proxytype=None,addr=None,port=None,rdns=True,username=None,password=None):
     """setproxy(proxytype, addr[, port[, rdns[, username[, password]]]])
     Sets the proxy to be used.
@@ -162,7 +162,7 @@ class socksocket(socket.socket):
     """
     self.__proxy = (proxytype,addr,port,rdns,username,password)
     self.allow_direct = False #disable local fallback
-  
+
   def __negotiatesocks5(self,destaddr,destport):
     """__negotiatesocks5(self,destaddr,destport)
     Negotiates a connection through a SOCKS5 server.
@@ -254,26 +254,26 @@ class socksocket(socket.socket):
       self.__proxypeername = (socket.inet_ntoa(ipaddr),destport)
     else:
       self.__proxypeername = (destaddr,destport)
-  
+
   def getproxysockname(self):
     """getsockname() -> address info
     Returns the bound IP address and port number at the proxy.
     """
     return self.__proxysockname
-  
+
   def getproxypeername(self):
     """getproxypeername() -> address info
     Returns the IP and port number of the proxy.
     """
     return _orgsocket.getpeername(self)
-  
+
   def getpeername(self):
     """getpeername() -> address info
     Returns the IP address and port number of the destination
     machine (note: getproxypeername returns the proxy)
     """
     return self.__proxypeername
-  
+
   def __negotiatesocks4(self,destaddr,destport):
     """__negotiatesocks4(self,destaddr,destport)
     Negotiates a connection through a SOCKS4 server.
@@ -321,7 +321,7 @@ class socksocket(socket.socket):
       self.__proxypeername = (socket.inet_ntoa(ipaddr),destport)
     else:
       self.__proxypeername = (destaddr,destport)
-  
+
   def __negotiatehttp(self,destaddr,destport):
     """__negotiatehttp(self,destaddr,destport)
     Negotiates a connection through an HTTP server.
@@ -352,7 +352,7 @@ class socksocket(socket.socket):
       raise HTTPError((statuscode,statusline[2]))
     self.__proxysockname = ("0.0.0.0",0)
     self.__proxypeername = (addr,destport)
-  
+
   def connect(self,destpair):
     """connect(self,despair)
     Connects to the specified destination through a proxy.
@@ -375,7 +375,7 @@ class socksocket(socket.socket):
     #if (type(destpair[0])!=str):
     #  print type(destpair[0]) #TODO testing
     #  raise GeneralProxyError((5,_generalerrors[5]+": destpair[0] is not str"))
-    
+
     if self.__proxy[0] == PROXY_TYPE_SOCKS5:
       if self.__proxy[2] != None:
         portnum = self.__proxy[2]

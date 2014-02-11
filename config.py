@@ -5,6 +5,7 @@ proxy_list = None
 
 result_validCheck = False
 skip_done = False
+print_status = True
 
 output_folder = "out/"
 results_folder = "results/"

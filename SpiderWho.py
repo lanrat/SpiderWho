@@ -15,7 +15,7 @@ def printStatusLine():
 
 def printStatusData(m):
     running_seconds = (time.time() - config.start_time)
-    
+
     domains = m.input_thread.getDomainCount()
     total_saved = m.save_thread.getNumSaved()
     good_saved = m.save_thread.getNumGood()
@@ -43,26 +43,31 @@ def run():
     while not t.ready:
         time.sleep(0.2)
 
-    printStatusLine()
-    printStatusData(t)
+    if config.print_status:
+        printStatusLine()
+        printStatusData(t)
+
+    time.sleep(0.5)
 
     try:
-      while t.getActiveThreadCount() >= 1 and t.isAlive():
-          printStatusData(t)
-          time.sleep(1)
-      if (t.getActiveThreadCount() == 0):
-          print "No valid Proxy threads running!!"
+        while t.getActiveThreadCount() >= 1 and t.isAlive():
+            if config.print_status:
+                printStatusData(t)
+            time.sleep(1)
+        if (t.getActiveThreadCount() == 0):
+            print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
         print "\nKeyboard Interrupt... Exiting"
     else:
-        printStatusData(t)
-        sys.stdout.write("\n")
+        if config.print_status:
+            printStatusData(t)
+            sys.stdout.write("\n")
         if config.debug:
             print "Done!"
     finally:
         if t.ready and t.input_thread.valid:
-          if config.debug and t.getQueueSize() > 0:
-              print "Ending with non-empty queue!"
+            if config.debug and t.getQueueSize() > 0:
+                print "Ending with non-empty queue!"
 
 
 if __name__ == '__main__':
@@ -74,6 +79,7 @@ if __name__ == '__main__':
     parser.add_argument("-s",help="Skip domains that already have results. Default: false",action='store_true',default=False)
     parser.add_argument("-d",help="Enable debug printing",action='store_true',default=False)
     parser.add_argument("-v",help="Enable Email validity check",action='store_true',default=False)
+    parser.add_argument("-q",help="Disable status printing",action='store_true',default=False)
     args = parser.parse_args()
 
     config.proxy_list = args.proxy_list
@@ -83,6 +89,7 @@ if __name__ == '__main__':
     config.skip_done = args.s
     config.debug = args.d
     config.result_validCheck = args.v
+    config.print_status = not args.q
 
     run()
 

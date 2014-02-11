@@ -76,7 +76,7 @@ class NICClient(object) :
             start = buf.rfind(NICClient.WHOIS_ORG_SERVER_ID)
             parts_index = 2
 
-        if (start > -1):  
+        if (start > -1):
             end = buf[start:].find('\n')
             #print 'end:', end
             whois_line = buf[start:end+start]
@@ -108,14 +108,14 @@ class NICClient(object) :
         there for contact details
         """
         if debug:
-          print 'parameters given:', query, hostname, flags
+            print 'parameters given:', query, hostname, flags
         #pdb.set_trace()
         s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
         s.settimeout(socket_timeout)
 
         #added code for proxy
         if (self.use_proxy):
-          s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
+            s.setproxy(self.proxy_type,self.proxy_server,self.proxy_port)
 
         #convert hostname to ascii
         hostname = hostname.encode('ascii','ignore')
@@ -149,9 +149,9 @@ class NICClient(object) :
         #pdb.set_trace()
         nhost = None
         if debug:
-          print '===========response=============='
-          print response
-          print "================================="
+            print '===========response=============='
+            print response
+            print "================================="
         response = enforce_ascii(response)
         if (flags & NICClient.WHOIS_RECURSE and nhost == None):
             nhost = self.findwhois_server(response.decode(), hostname)
@@ -170,14 +170,14 @@ class NICClient(object) :
         if (tld[0].isdigit()):
             return None
         return tld
-   
+
     def choose_server(self, domain):
         """Choose initial lookup NIC host"""
         tld = self.getTLD(domain)
         if tld:
             return tld + NICClient.QNICHOST_TAIL
         return NICClient.ANICHOST
-    
+
     def whois_lookup(self, options, query_arg, flags):
         """Main entry point: Perform initial lookup on TLD whois server,
         or other server to get region-specific whois server, then if quick
@@ -187,16 +187,16 @@ class NICClient(object) :
         nichost = None
         #pdb.set_trace()
         # this would be the case when this function is called by other than main
-        if (options == None):                    
+        if (options == None):
             options = {}
-     
+
         if ( (not 'whoishost' in options or options['whoishost'] == None)
             and (not 'country' in options or options['country'] == None)):
             self.use_qnichost = True
             options['whoishost'] = NICClient.NICHOST
             if ( not (flags & NICClient.WHOIS_QUICK)):
                 flags |= NICClient.WHOIS_RECURSE
-           
+
         if ('country' in options and options['country'] != None):
             result = self.whois(query_arg, options['country'] + NICClient.QNICHOST_TAIL, flags)
         elif (self.use_qnichost):
