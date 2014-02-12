@@ -22,3 +22,5 @@ min_response_lines = 4
 max_attempts = 3
 
 start_time = 0
+
+whois_server_delay = 20 

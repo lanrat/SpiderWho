@@ -8,7 +8,7 @@ import sys
 
 
 def printStatusLine():
-    sys.stdout.write("Domains\tGood\tFail\tSaved\tSkipped\tActiveT\tWorkerT\tQueue\tLPS\tTime")
+    sys.stdout.write("Domains\tLookups\tGood\tFail\tSaved\tSkipped\tActiveT\tTotalT\tLPS\tTime")
     sys.stdout.write("\n")
     sys.stdout.flush()
 
@@ -17,20 +17,21 @@ def printStatusData(m):
     running_seconds = (time.time() - config.start_time)
 
     domains = m.input_thread.getDomainCount()
-    total_saved = m.save_thread.getNumSaved()
+    lookups = m.getLookupCount()
     good_saved = m.save_thread.getNumGood()
     fail_saved = m.save_thread.getNumFails()
+    total_saved = m.save_thread.getNumSaved()
     skipped = m.input_thread.getNumSkipped()
     active_threads = m.getActiveThreadCount()
-    worker_threads = m.getWorkingThreadCount()
-    queue_size = m.getQueueSize()
-    lps = round((m.input_thread.getDomainCount()-m.getQueueSize())/running_seconds,2)
+    total_threads = m.getTotalThreadCount()
+    lps = round((lookups/running_seconds),2)
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
 
-    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" %
-            (domains, good_saved, fail_saved, total_saved, skipped, active_threads,
-                worker_threads, queue_size, lps, running_time))
+    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" % 
+            (domains, lookups, good_saved, fail_saved, total_saved, skipped, active_threads,
+                total_threads, lps, running_time))
     sys.stdout.flush()
+
 
 def run():
     t = ManagerThread()
@@ -50,11 +51,11 @@ def run():
     time.sleep(0.5)
 
     try:
-        while t.getActiveThreadCount() >= 1 and t.isAlive():
+        while t.getTotalThreadCount() >= 1 and t.isAlive():
             if config.print_status:
                 printStatusData(t)
             time.sleep(1)
-        if (t.getActiveThreadCount() == 0):
+        if (t.getTotalThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
         print "\nKeyboard Interrupt... Exiting"

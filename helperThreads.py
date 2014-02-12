@@ -13,16 +13,15 @@ class ManagerThread(threading.Thread):
 
     def getActiveThreadCount(self):
         '''returns the number of threads spawned'''
-        return whoisThread.getWorkerThreadCount();
+        return whoisThread.getActiveThreadCount();
 
+    def getLookupCount(self):
+        '''returns the number whois queries submitted'''
+        return whoisThread.getLookupCount();
 
-    def getWorkingThreadCount(self):
+    def getTotalThreadCount(self):
         '''return the number of threads that are actually doing something'''
-        count = 0
-        for t in self.threads:
-            if t and t.working:
-                count += 1
-        return count
+        return len(self.threads)
 
 
     def __init__(self):
@@ -34,8 +33,6 @@ class ManagerThread(threading.Thread):
         self.ready = False
         self.threads = list()
 
-    def getQueueSize(self):
-        return self.input_queue.qsize()
 
     def run(self):
         #startSaveThread
@@ -78,7 +75,7 @@ class ManagerThread(threading.Thread):
 
         #now wait for all the work to be done
         while self.input_thread.isAlive():
-            time.sleep(0.1)
+            time.sleep(0.5)
 
         if config.debug:
             print "Done loading domains to queue"

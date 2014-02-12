@@ -44,11 +44,13 @@ class WhoisLinesException(Exception):
 
 
 #static vars
-numWorkerThreads_lock = threading.Lock()
-numWorkerThreads = 0
+numActiveThreads_lock = threading.Lock()
+numActiveThreads = 0
 proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
 socket_timeout = 30 #seconds
+numLookups_lock = threading.Lock()
+numLookups = 0
 
 
 def addRemoteProxyIP(ip):
@@ -66,33 +68,55 @@ def addRemoteProxyIP(ip):
         proxy_ip_list_lock.release()
         return ret
 
-def incrementWorkerThreadCount():
-    global numWorkerThreads_lock
-    global numWorkerThreads
-    numWorkerThreads_lock.acquire()
+def incrementLookupCount():
+    global numLookups_lock
+    global numLookups
+    numLookups_lock.acquire()
     try:
-        numWorkerThreads += 1
+        numLookups += 1
     finally:
-        numWorkerThreads_lock.release()
+        numLookups_lock.release()
 
-def decrementWorkerThreadCount():
-    global numWorkerThreads_lock
-    global numWorkerThreads
-    numWorkerThreads_lock.acquire()
-    try:
-        numWorkerThreads -= 1
-    finally:
-        numWorkerThreads_lock.release()
-
-def getWorkerThreadCount():
-    global numWorkerThreads_lock
-    global numWorkerThreads
+def getLookupCount():
+    global numActiveThreads_loc
+    global numActiveThreads
     ret = -1
-    numWorkerThreads_lock.acquire()
+    numLookups_lock.acquire()
     try:
-        ret = numWorkerThreads
+        ret = numLookups
     finally:
-        numWorkerThreads_lock.release()
+        numLookups_lock.release()
+    return ret
+
+
+def incrementActiveThreadCount():
+    global numActiveThreads_lock
+    global numActiveThreads
+    numActiveThreads_lock.acquire()
+    try:
+        numActiveThreads += 1
+    finally:
+        numActiveThreads_lock.release()
+
+
+def decrementActiveThreadCount():
+    global numActiveThreads_lock
+    global numActiveThreads
+    numActiveThreads_lock.acquire()
+    try:
+        numActiveThreads -= 1
+    finally:
+        numActiveThreads_lock.release()
+
+def getActiveThreadCount():
+    global numActiveThreads_lock
+    global numActiveThreads
+    ret = -1
+    numActiveThreads_lock.acquire()
+    try:
+        ret = numActiveThreads
+    finally:
+        numActiveThreads_lock.release()
     return ret
 
 
@@ -232,7 +256,6 @@ class Proxy:
         self.errors = 0
         self.client = proxywhois.NICClient()
         self.history = dict() #TODO make more iteligent
-        self.delay = 20 # delay in seconds to wait before reusing the same proxy
 
     def connect(self):
         self.updateExternalIP()
@@ -284,17 +307,18 @@ class Proxy:
         while (recurse_level > 0) and (whois_server != None):
             if whois_server in self.history:
                 tdelta = time.time() - self.history[whois_server]
-                if tdelta < self.delay:
-                    #if config.debug:
-                    #  print "Whois server ["+whois_server+"] used recently, sleeping for "+str(self.delay-tdelta)+" seconds"
-                    time.sleep(self.delay-tdelta) #TODO dont ever sleep
+                if tdelta < config.whois_server_delay:
+                    #TODO this block is the largest bottleneck
+                    decrementActiveThreadCount()
+                    time.sleep(config.whois_server_delay-tdelta)
+                    incrementActiveThreadCount()
             self.history[whois_server] = time.time()
             response = WhoisResponse(whois_server)
             data = None
             try:
-                    data = self.client.whois(record.domain,whois_server,0)
+                data = self.client.whois(record.domain,whois_server,0)
             except:
-                    pass
+                pass
             if data == None or len(data) < 1:
                 error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 if config.debug:
@@ -323,7 +347,6 @@ class WhoisThread(threading.Thread):
         self.proxy = proxy
         self.save_queue = save
         self.running = True
-        self.working = False
 
     def fail(self,record,error):
         self.proxy.errors += 1
@@ -345,20 +368,19 @@ class WhoisThread(threading.Thread):
                 print "WARNING: Failed to connect to proxy: " + str(self.proxy)
             time.sleep(20)
 
-        incrementWorkerThreadCount()
 
         if not addRemoteProxyIP(self.proxy.external_ip):
             if config.debug:
                 print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
-            decrementWorkerThreadCount()
             return
 
         while self.running:
             #get next host
             record = self.queue.get()
-            self.working = True
+            incrementActiveThreadCount()
             record.addAttempt(WhoisAttempt(self.proxy))
             try:
+                incrementLookupCount()
                 self.proxy.whois(record)
             except proxywhois.socks.GeneralProxyError as e:
                 if e.value[0] == 6: #is there a proxy error?
@@ -396,7 +418,6 @@ class WhoisThread(threading.Thread):
             finally:
                 #inform the queue we are done
                 self.queue.task_done()
-                self.working = False
 
-        decrementWorkerThreadCount()
+                decrementActiveThreadCount()
 
