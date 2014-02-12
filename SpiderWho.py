@@ -27,7 +27,7 @@ def printStatusData(m):
     lps = round((lookups/running_seconds),2)
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
 
-    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" % 
+    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" %
             (domains, lookups, good_saved, fail_saved, total_saved, skipped, active_threads,
                 total_threads, lps, running_time))
     sys.stdout.flush()
@@ -93,4 +93,3 @@ if __name__ == '__main__':
     config.print_status = not args.q
 
     run()
-

@@ -398,11 +398,11 @@ class WhoisThread(threading.Thread):
                 error = "Invalid domain: " + record.domain
                 self.fail(record,error)
             except NullWhois as e:
-                    self.fail(record,str(e))
+                self.fail(record,str(e))
             except WhoisTimeoutException as e:
-                    self.fail(record,str(e))
+                self.fail(record,str(e))
             except WhoisLinesException as e:
-                    self.fail(record,str(e))
+                self.fail(record,str(e))
             except Exception as e:
                 if config.debug:
                     raise e
@@ -420,4 +420,3 @@ class WhoisThread(threading.Thread):
                 self.queue.task_done()
 
                 decrementActiveThreadCount()
-

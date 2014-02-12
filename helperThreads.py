@@ -200,5 +200,3 @@ class SaveThread(threading.Thread):
         except IOError:
             print "Unabe to write "+record.domain+" data to file"
             return False
-
-

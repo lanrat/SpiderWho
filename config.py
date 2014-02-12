@@ -23,4 +23,4 @@ max_attempts = 3
 
 start_time = 0
 
-whois_server_delay = 20 
+whois_server_delay = 20
