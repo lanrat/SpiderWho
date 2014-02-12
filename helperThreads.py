@@ -141,7 +141,7 @@ class SaveThread(threading.Thread):
         self._results_folder = config.OUTPUT_FOLDER + config.RESULTS_FOLDER
         if not os.path.exists(config.OUTPUT_FOLDER):
             os.makedirs(config.OUTPUT_FOLDER)
-        if not os.path.exists(self._log_folder):
+        if not os.path.exists(self._log_folder) and config.SAVE_LOGS:
             os.makedirs(self._log_folder)
         if not os.path.exists(self._results_folder):
             os.makedirs(self._results_folder)
@@ -159,7 +159,8 @@ class SaveThread(threading.Thread):
         while True:
             r = self._queue.get()
             try:
-                self.saveLog(r)
+                if config.SAVE_LOGS:
+                    self.saveLog(r)
                 if r.current_attempt.success:
                     self.saveData(r)
                 else:

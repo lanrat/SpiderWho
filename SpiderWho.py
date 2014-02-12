@@ -82,6 +82,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", help="Skip domains that already have results. Default: false", action='store_true', default=False)
     parser.add_argument("-d", help="Enable debug printing", action='store_true', default=False)
     parser.add_argument("-v", help="Enable Email validity check", action='store_true', default=False)
+    parser.add_argument("-l", help="Disable log saving", action='store_true', default=False)
     parser.add_argument("-q", help="Disable status printing", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -93,6 +94,7 @@ if __name__ == '__main__':
     config.DEBUG = args.d
     config.RESULT_VALIDCHECK = args.v
     config.PRINT_STATUS = not args.q
+    config.SAVE_LOGS = not args.l
 
     run()
 

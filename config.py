@@ -7,6 +7,7 @@ PROXY_LIST = None
 RESULT_VALIDCHECK = False
 SKIP_DONE = False
 PRINT_STATUS = True
+SAVE_LOGS = True
 
 OUTPUT_FOLDER = "out/"
 RESULTS_FOLDER = "results/"
