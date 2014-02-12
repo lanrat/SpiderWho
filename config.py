@@ -1,26 +1,27 @@
-debug = True
+'''Python module to contain all configuration settings for SpiderWho'''
+DEBUG = True
 
-domain_list = None
-proxy_list = None
+DOMAIN_LIST = None
+PROXY_LIST = None
 
-result_validCheck = False
-skip_done = False
-print_status = True
+RESULT_VALIDCHECK = False
+SKIP_DONE = False
+PRINT_STATUS = True
 
-output_folder = "out/"
-results_folder = "results/"
-log_folder = "logs/"
-fail_filename = "fail.txt"
+OUTPUT_FOLDER = "out/"
+RESULTS_FOLDER = "results/"
+LOG_FOLDER = "logs/"
+FAIL_FILENAME = "fail.txt"
 
-save_ext = "whois"
+SAVE_EXT = "whois"
 
-num_proxies = 0
-max_queue_size = 10000
+NUM_PROXIES = 0
+MAX_QUEUE_SIZE = 10000
 
-min_response_lines = 4
+MIN_RESPONSE_LINES = 4
 
-max_attempts = 3
+MAX_ATTEMPTS = 3
 
-start_time = 0
+START_TIME = 0
 
-whois_server_delay = 20
+WHOIS_SERVER_DELAY = 20

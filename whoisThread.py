@@ -255,7 +255,7 @@ class Proxy:
         self.ready = False
         self.errors = 0
         self.client = proxywhois.NICClient()
-        self.history = dict() #TODO make more iteligent
+        self.history = dict() #TODO make more intelligent
 
     def connect(self):
         self.updateExternalIP()
@@ -307,10 +307,10 @@ class Proxy:
         while (recurse_level > 0) and (whois_server != None):
             if whois_server in self.history:
                 tdelta = time.time() - self.history[whois_server]
-                if tdelta < config.whois_server_delay:
+                if tdelta < config.WHOIS_SERVER_DELAY:
                     #TODO this block is the largest bottleneck
                     decrementActiveThreadCount()
-                    time.sleep(config.whois_server_delay-tdelta)
+                    time.sleep(config.WHOIS_SERVER_DELAY-tdelta)
                     incrementActiveThreadCount()
             self.history[whois_server] = time.time()
             response = WhoisResponse(whois_server)
@@ -321,13 +321,13 @@ class Proxy:
                 pass
             if data == None or len(data) < 1:
                 error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
-                if config.debug:
+                if config.DEBUG:
                     print error
                 raise NullWhois(error)
             response.setResponse(data)
             data = convert_line_endings(data,0)
             nLines = data.count('\n')
-            if nLines < config.min_response_lines: #if we got less than 4 lines in the response
+            if nLines < config.MIN_RESPONSE_LINES: #if we got less than 4 lines in the response
                 error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 raise WhoisLinesException(error,data)
 
@@ -351,9 +351,9 @@ class WhoisThread(threading.Thread):
     def fail(self,record,error):
         self.proxy.errors += 1
         record.addError(error)
-        if (config.debug):
+        if (config.DEBUG):
             print "["+ str(self.proxy) +"] "+ error
-        if record.numAttempts() < config.max_attempts:
+        if record.numAttempts() < config.MAX_ATTEMPTS:
             self.queue.put(record)
         else:
             record.maxAttempts = True
@@ -364,13 +364,13 @@ class WhoisThread(threading.Thread):
 
         #wait untill proxy is active if down
         while not self.proxy.connect():
-            if config.debug:
+            if config.DEBUG:
                 print "WARNING: Failed to connect to proxy: " + str(self.proxy)
             time.sleep(20)
 
 
         if not addRemoteProxyIP(self.proxy.external_ip):
-            if config.debug:
+            if config.DEBUG:
                 print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
             return
 
@@ -404,12 +404,12 @@ class WhoisThread(threading.Thread):
             except WhoisLinesException as e:
                 self.fail(record,str(e))
             except Exception as e:
-                if config.debug:
+                if config.DEBUG:
                     raise e
                 error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
                 self.fail(record,error)
             else:
-                if (not config.result_validCheck) or record.valid():
+                if (not config.RESULT_VALIDCHECK) or record.valid():
                     record.current_attempt.success = True
                     self.save_queue.put(record)
                 else:

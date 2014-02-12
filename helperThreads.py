@@ -10,14 +10,16 @@ import config
 #this thread is in charge of starting all the other
 #threads and keeping track of thir running status
 class ManagerThread(threading.Thread):
+    '''main thread that is responsible for starting and keeping
+    track of all other threads'''
 
     def getActiveThreadCount(self):
         '''returns the number of threads spawned'''
-        return whoisThread.getActiveThreadCount();
+        return whoisThread.getActiveThreadCount()
 
     def getLookupCount(self):
         '''returns the number whois queries submitted'''
-        return whoisThread.getLookupCount();
+        return whoisThread.getLookupCount()
 
     def getTotalThreadCount(self):
         '''return the number of threads that are actually doing something'''
@@ -26,8 +28,8 @@ class ManagerThread(threading.Thread):
 
     def __init__(self):
         threading.Thread.__init__(self)
-        self.input_queue = Queue(maxsize=config.max_queue_size)
-        self.save_queue = Queue(maxsize=config.max_queue_size)
+        self.input_queue = Queue(maxsize=config.MAX_QUEUE_SIZE)
+        self.save_queue = Queue(maxsize=config.MAX_QUEUE_SIZE)
         self.input_thread = None
         self.save_thread = None
         self.ready = False
@@ -41,8 +43,8 @@ class ManagerThread(threading.Thread):
 
         #start whois threads
         try:
-            for l in open(config.proxy_list,'r'):
-                if config.num_proxies == 0 or len(self.threads) < config.num_proxies:
+            for l in open(config.PROXY_LIST,'r'):
+                if config.NUM_PROXIES == 0 or len(self.threads) < config.NUM_PROXIES:
                     l = l.strip()
                     if l[0] != '#': #if not a comment
                         url = urlparse.urlparse(l)
@@ -59,9 +61,9 @@ class ManagerThread(threading.Thread):
                             t.start()
                             self.threads.append(t)
         except IOError:
-            print "Unable to open proxy file: " + config.proxy_list
+            print "Unable to open proxy file: " + config.PROXY_LIST
             return
-        if config.debug:
+        if config.DEBUG:
             print str(whoisThread.getWorkerThreadCount()) + " threads started"
 
         #now start EnqueueThread
@@ -77,12 +79,12 @@ class ManagerThread(threading.Thread):
         while self.input_thread.isAlive():
             time.sleep(0.5)
 
-        if config.debug:
+        if config.DEBUG:
             print "Done loading domains to queue"
 
         self.input_queue.join()
 
-        if config.debug:
+        if config.DEBUG:
             print "Saving results"
         self.save_queue.join()
 
@@ -97,13 +99,13 @@ class EnqueueThread(threading.Thread):
         self._domains = 0
         self.valid = False
         self.skipped = 0
-        self._results_folder = config.output_folder+config.results_folder
+        self._results_folder = config.OUTPUT_FOLDER+config.RESULTS_FOLDER
 
     def getNumSkipped(self):
         return self.skipped
 
     def skipDomain(self,domain):
-        path = self._results_folder+domain+"."+config.save_ext
+        path = self._results_folder+domain+"."+config.SAVE_EXT
         return os.path.isfile(path)
 
     def getDomainCount(self):
@@ -111,16 +113,16 @@ class EnqueueThread(threading.Thread):
 
     def run(self):
         try:
-            fh = open(config.domain_list,'r')
+            fh = open(config.DOMAIN_LIST,'r')
             self.valid = True
         except IOError:
             self.valid = False
-            print "Unable to open file: "+ config.domain_list
+            print "Unable to open file: "+ config.DOMAIN_LIST
             return
         for l in fh:
             l = l.strip().upper()
             if len(l) > 3:
-                if not (config.skip_done and self.skipDomain(l)):
+                if not (config.SKIP_DONE and self.skipDomain(l)):
                     self._queue.put(whoisThread.WhoisResult(l))
                     self._domains +=1
                 else:
@@ -134,11 +136,11 @@ class SaveThread(threading.Thread):
         self._num_saved = 0
         self._num_good = 0
         self._num_faild = 0
-        self._fail_filepath =  config.output_folder + config.fail_filename
-        self._log_folder = config.output_folder + config.log_folder
-        self._results_folder = config.output_folder + config.results_folder
-        if not os.path.exists(config.output_folder):
-            os.makedirs(config.output_folder)
+        self._fail_filepath =  config.OUTPUT_FOLDER + config.FAIL_FILENAME
+        self._log_folder = config.OUTPUT_FOLDER + config.LOG_FOLDER
+        self._results_folder = config.OUTPUT_FOLDER + config.RESULTS_FOLDER
+        if not os.path.exists(config.OUTPUT_FOLDER):
+            os.makedirs(config.OUTPUT_FOLDER)
         if not os.path.exists(self._log_folder):
             os.makedirs(self._log_folder)
         if not os.path.exists(self._results_folder):
@@ -192,7 +194,7 @@ class SaveThread(threading.Thread):
 
     def saveData(self,record):
         try:
-            f = open(self._results_folder+record.domain+"."+config.save_ext,'w')
+            f = open(self._results_folder+record.domain+"."+config.SAVE_EXT,'w')
             f.write(record.getData())
             f.close()
             self._num_good += 1

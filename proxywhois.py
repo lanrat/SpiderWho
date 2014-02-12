@@ -55,7 +55,7 @@ class NICClient(object) :
         self.proxy_server = None
         self.proxy_port = None
 
-    def set_proxy(self,proxy_type,server,port):
+    def set_proxy(self, proxy_type, server,port):
         """Enables the use of the specified proxy for lookups"""
         self.use_proxy = True
         self.proxy_type = proxy_type
