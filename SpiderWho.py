@@ -60,7 +60,7 @@ def run():
         while manager.getTotalThreadCount() >= 1 and manager.isAlive():
             if config.PRINT_STATUS:
                 print_status_data(manager)
-            time.sleep(1)
+            time.sleep(3)
         if (manager.getTotalThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
