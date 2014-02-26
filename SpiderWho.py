@@ -10,6 +10,7 @@ import argparse
 import config
 import sys
 
+last_lookups = 0
 
 def print_status_line():
     '''prints the statusline header'''
@@ -20,6 +21,7 @@ def print_status_line():
 
 def print_status_data(manager):
     '''updates the statusline data'''
+    global last_lookups
     running_seconds = (time.time() - config.START_TIME)
 
     domains = manager.input_thread.getDomainCount()
@@ -30,10 +32,12 @@ def print_status_data(manager):
     skipped = manager.input_thread.getNumSkipped()
     active_threads = manager.getActiveThreadCount()
     total_threads = manager.getTotalThreadCount()
-    lps = round((lookups/running_seconds), 2)
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
+    lps = round((lookups-last_lookups/config.STATUS_UPDATE_DELAY), 2)
 
-    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t" %
+    last_lookups = lookups
+
+    sys.stdout.write("\r%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.1f\t%s\t" %
             (domains, lookups, good_saved, fail_saved, total_saved, skipped, active_threads, total_threads, lps, running_time))
     sys.stdout.flush()
 
@@ -60,7 +64,7 @@ def run():
         while manager.getTotalThreadCount() >= 1 and manager.isAlive():
             if config.PRINT_STATUS:
                 print_status_data(manager)
-            time.sleep(3)
+            time.sleep(config.STATUS_UPDATE_DELAY)
         if (manager.getTotalThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:

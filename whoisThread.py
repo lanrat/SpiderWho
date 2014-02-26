@@ -22,7 +22,7 @@ def convert_line_endings(temp, mode):
     return temp
 
 #NULL whois result Exception
-class NullWhois(Exception):
+class NullWhoisException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
@@ -41,6 +41,11 @@ class WhoisLinesException(Exception):
     def __str__(self):
         return repr(self.value)+"\n"+repr(self.data)
 
+class WhoisRatelimitException(Exception):
+    def __init__(self, server):
+        self.server = server
+    def __str__(self):
+        return repr(self.server)
 
 
 #static vars
@@ -127,6 +132,13 @@ class WhoisResult:
         self.attempts = list()
         self.current_attempt = None
         self.maxAttempts = False
+        self.next_whois_server = None
+
+    def getNextServer(self):
+        return self.next_whois_server
+
+    def setNextServer(self,server):
+        self.next_whois_server = server
 
     def valid(self):
         '''performs quick checking to verify that the data we got may contain some valid data'''
@@ -303,17 +315,25 @@ class Proxy:
         # this is the maximum amout of times we will recurse looking for
         # a thin whois server to reffer us
         recurse_level = 2
-        whois_server = self.client.choose_server(record.domain)
+        whois_server = record.getNextServer()
+        if whois_server == None:
+            whois_server = self.client.choose_server(record.domain)
         while (recurse_level > 0) and (whois_server != None):
+            record.setNextServer(whois_server)
             if whois_server in self.history:
                 tdelta = time.time() - self.history[whois_server]
-                if tdelta < config.WHOIS_SERVER_DELAY:
-                    #TODO this block is the largest bottleneck
-                    decrementActiveThreadCount()
-                    time.sleep(config.WHOIS_SERVER_DELAY-tdelta)
-                    incrementActiveThreadCount()
+                if tdelta < config.WHOIS_SERVER_JUMP_DELAY: #if the amount of time is less than the delay
+                    if (config.WHOIS_SERVER_JUMP_DELAY-tdelta) < config.WHOIS_SERVER_SLEEP_DELAY:
+                        decrementActiveThreadCount()
+                        time.sleep(config.WHOIS_SERVER_JUMP_DELAY-tdelta)
+                        incrementActiveThreadCount()
+                    else:
+                        raise WhoisRatelimitException(whois_server)
+                        #TODO save partial whois information
+            #TODO have thread remove old entries from history every x runs (runs % x)
             self.history[whois_server] = time.time()
             response = WhoisResponse(whois_server)
+            incrementLookupCount()
             data = None
             try:
                 data = self.client.whois(record.domain,whois_server,0)
@@ -323,11 +343,11 @@ class Proxy:
                 error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 if config.DEBUG:
                     print error
-                raise NullWhois(error)
+                raise NullWhoisException(error)
+            data = convert_line_endings(data,0) #is this really needed?
             response.setResponse(data)
-            data = convert_line_endings(data,0)
             nLines = data.count('\n')
-            if nLines < config.MIN_RESPONSE_LINES: #if we got less than 4 lines in the response
+            if nLines < config.MIN_RESPONSE_LINES: #if we got less than the minimul amount of lines to be considered a valid response
                 error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 raise WhoisLinesException(error,data)
 
@@ -380,8 +400,13 @@ class WhoisThread(threading.Thread):
             incrementActiveThreadCount()
             record.addAttempt(WhoisAttempt(self.proxy))
             try:
-                incrementLookupCount()
                 self.proxy.whois(record)
+            except WhoisRatelimitException as e:
+                #we reached a server who's wait is more than the allowed sleeping time
+                #give the request to another server
+                #if config.DEBUG or True:
+                    #print "requeue: "+str(e)
+                self.queue.put(record)
             except proxywhois.socks.GeneralProxyError as e:
                 if e.value[0] == 6: #is there a proxy error?
                     error = "Unable to connect to once valid proxy"
@@ -397,7 +422,7 @@ class WhoisThread(threading.Thread):
                 #bad domain name
                 error = "Invalid domain: " + record.domain
                 self.fail(record,error)
-            except NullWhois as e:
+            except NullWhoisException as e:
                 self.fail(record,str(e))
             except WhoisTimeoutException as e:
                 self.fail(record,str(e))
