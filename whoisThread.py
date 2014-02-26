@@ -1,7 +1,7 @@
 import threading
 import proxywhois
 import socks
-import sys #for debugging
+import sys
 import time
 import traceback
 import re
@@ -267,7 +267,7 @@ class Proxy:
         self.ready = False
         self.errors = 0
         self.client = proxywhois.NICClient()
-        self.history = dict() #TODO make more intelligent
+        self.history = dict()
 
     def connect(self):
         self.updateExternalIP()
@@ -329,7 +329,6 @@ class Proxy:
                         incrementActiveThreadCount()
                     else:
                         raise WhoisRatelimitException(whois_server)
-                        #TODO save partial whois information
             #TODO have thread remove old entries from history every x runs (runs % x)
             self.history[whois_server] = time.time()
             response = WhoisResponse(whois_server)
@@ -417,8 +416,7 @@ class WhoisThread(threading.Thread):
                 else:
                     error = "Error Running whois on domain:["+record.domain+"] " + str(e)
                     self.fail(record,error)
-            except proxywhois.socks.HTTPError as e:
-                #TODO also handle the socks case
+            except (proxywhois.socks.HTTPError, proxywhois.socks.Socks4Error, proxywhois.socks.Socks5Error) as e:
                 #bad domain name
                 error = "Invalid domain: " + record.domain
                 self.fail(record,error)
