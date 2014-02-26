@@ -79,13 +79,13 @@ def run():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("proxy_list", help="file containign a list of http proxies and ports")
+    parser.add_argument("proxy_list", help="file containing a list of http proxies and ports")
     parser.add_argument("domain_list", help="file containing a list of domains to use")
     parser.add_argument("-np", help="Maximum number of proxies to use. Default: 0/All", type=int, default=0)
     parser.add_argument("-o", help="Output directory to store results. Default: out/", default="out")
     parser.add_argument("-s", help="Skip domains that already have results. Default: false", action='store_true', default=False)
     parser.add_argument("-d", help="Enable debug printing", action='store_true', default=False)
-    parser.add_argument("-v", help="Enable Email validity check", action='store_true', default=False)
+    parser.add_argument("-e", help="Enable Email validity check", action='store_true', default=False)
     parser.add_argument("-l", help="Enable log saving", action='store_true', default=False)
     parser.add_argument("-q", help="Disable status printing", action='store_true', default=False)
     args = parser.parse_args()
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     config.OUTPUT_FOLDER = args.o+"/"
     config.SKIP_DONE = args.s
     config.DEBUG = args.d
-    config.RESULT_VALIDCHECK = args.v
+    config.RESULT_VALIDCHECK = args.e
     config.PRINT_STATUS = not args.q
     config.SAVE_LOGS = args.l
 
