@@ -23,6 +23,7 @@ class ManagerThread(threading.Thread):
 
     def getTotalThreadCount(self):
         '''return the number of threads that are actually doing something'''
+        #TODO make only return number of threads with a working proxy
         return len(self.threads)
 
 
