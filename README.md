@@ -29,7 +29,8 @@ Proxy lists should have one proxy per line in the following format:
 Comments are allowed and start with "#".
 
 ### Domain Lists
-Domain lists should have one domain per line
+Domain lists should have one domain per line.
+List can contain domain names or IP addresses.
 
 ### Output
 ```
@@ -48,8 +49,7 @@ LPS: Lookups per second. How many queries have been performed each second.
 Time: The total running time of the program.  
 
 ## TODO
-1. support IP WHOIS
-2. Better detection of failures
-3. Save incremental logs
+1. Better detection of failures
+2. Save incremental logs
 
 
