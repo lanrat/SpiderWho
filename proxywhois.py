@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-#taken from pywhois class with some modifications
+"""
+Taken from pywhois project: https://code.google.com/p/pywhois/
+with some modifications for proxy support
+"""
 
 import socks
 socket_timeout = 30 #seconds
