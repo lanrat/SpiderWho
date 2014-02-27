@@ -1,7 +1,1 @@
 *.pyc
-*.swp
-domains/
-proxies.txt
-bad_proxies.txt
-out/*
-.nfs*
