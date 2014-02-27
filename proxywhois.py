@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #taken from pywhois class with some modifications
 
-from libs.SocksiPy import socks
+import socks
 socket_timeout = 30 #seconds
 
 debug = False
