@@ -9,18 +9,6 @@ import urlparse
 import config
 import string
 
-def convert_line_endings(temp, mode):
-    '''modes:  0 - Unix, 1 - Mac, 2 - DOS'''
-    if mode == 0:
-        temp = string.replace(temp, '\r\n', '\n')
-        temp = string.replace(temp, '\r', '\n')
-    elif mode == 1:
-        temp = string.replace(temp, '\r\n', '\r')
-        temp = string.replace(temp, '\n', '\r')
-    elif mode == 2:
-        temp = re.sub("\r(?!\n)|(?<!\r)\n", "\r\n", temp)
-    return temp
-
 #NULL whois result Exception
 class NullWhoisException(Exception):
     def __init__(self, value):
@@ -42,10 +30,18 @@ class WhoisLinesException(Exception):
         return repr(self.value)+"\n"+repr(self.data)
 
 class WhoisRatelimitException(Exception):
-    def __init__(self, server):
+    def __init__(self, server, fail=False):
         self.server = server
+        self.fail = fail
     def __str__(self):
         return repr(self.server)
+
+class WhoisBadDomainException(Exception):
+    def __init__(self, domain):
+        self.domain = domain
+    def __str__(self):
+        return repr(self.domain)
+
 
 
 #static vars
@@ -143,7 +139,7 @@ class WhoisResult:
     def valid(self):
         '''performs quick checking to verify that the data we got may contain some valid data'''
         #search for email
-        match = re.search(r'[\w.-]+@[\w.-]+', self.getData())
+        match = re.search(config.EMAIL_REGEX, self.getData())
         if match:
             return True
         return False
@@ -319,6 +315,7 @@ class Proxy:
         if whois_server == None:
             whois_server = self.client.choose_server(record.domain)
         while (recurse_level > 0) and (whois_server != None):
+            whois_server = whois_server.lower()
             record.setNextServer(whois_server)
             if whois_server in self.history:
                 tdelta = time.time() - self.history[whois_server]
@@ -343,10 +340,24 @@ class Proxy:
                 if config.DEBUG:
                     print error
                 raise NullWhoisException(error)
-            data = convert_line_endings(data,0) #is this really needed?
+
             response.setResponse(data)
+
+            #TODO move these checks into a response checking function/class
             nLines = data.count('\n')
             if nLines < config.MIN_RESPONSE_LINES: #if we got less than the minimul amount of lines to be considered a valid response
+
+                ''' check for org rate limits'''
+                if "WHOIS LIMIT EXCEEDED" in data:
+                    raise WhoisRatelimitException(whois_server, True)
+                '''non-existant domain'''
+                if "Invalid domain name" in data:
+                    raise WhoisBadDomainException(record.domain)
+                if "No match for " in data and " in the registrar database" in data:
+                    raise WhoisBadDomainException(record.domain)
+                if "Domain not found" in data:
+                    raise WhoisBadDomainException(record.domain)
+
                 error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 raise WhoisLinesException(error,data)
 
@@ -367,12 +378,12 @@ class WhoisThread(threading.Thread):
         self.save_queue = save
         self.running = True
 
-    def fail(self,record,error):
+    def fail(self, record, error, requeue=True):
         self.proxy.errors += 1
         record.addError(error)
         if (config.DEBUG):
             print "["+ str(self.proxy) +"] "+ error
-        if record.numAttempts() < config.MAX_ATTEMPTS:
+        if requeue and record.numAttempts() < config.MAX_ATTEMPTS:
             self.queue.put(record)
         else:
             record.maxAttempts = True
@@ -403,9 +414,10 @@ class WhoisThread(threading.Thread):
             except WhoisRatelimitException as e:
                 #we reached a server who's wait is more than the allowed sleeping time
                 #give the request to another server
-                #if config.DEBUG or True:
-                    #print "requeue: "+str(e)
-                self.queue.put(record)
+                if e.fail:
+                    self.fail(record, str(e))
+                else:
+                    self.queue.put(record)
             except proxywhois.socks.GeneralProxyError as e:
                 if e.value[0] == 6: #is there a proxy error?
                     error = "Unable to connect to once valid proxy"
@@ -420,13 +432,11 @@ class WhoisThread(threading.Thread):
                 #bad domain name
                 error = "Invalid domain: " + record.domain
                 self.fail(record,error)
-            except NullWhoisException as e:
-                self.fail(record,str(e))
-            except WhoisTimeoutException as e:
-                self.fail(record,str(e))
-            except WhoisLinesException as e:
-                self.fail(record,str(e))
-            except Exception as e:
+            except (NullWhoisException, WhoisTimeoutException, WhoisLinesException) as e:
+                self.fail(record, str(e))
+            except WhoisBadDomainException as e:
+                self.fail(record, str(e), False)
+            except WhoisBadDomainException as e:
                 if config.DEBUG:
                     raise e
                 error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
