@@ -44,12 +44,12 @@ Fail: Total number of queries that have failed more than the max retries amount.
 Saved: Total number of saved queries. When logging is disabled this number is equal to Good.  
 Sipped: The total number of domains that have been skipped because a result was already found in the output directory.  
 ActiveT: The number of active threads actively performing a WHOIS query not waiting due to rate limiting.  
-TotalT: The total number of worker threads, should be the same as number of proxies.  
+TotalT: The total number of working and active proxies. This number may change as proxies provided go up or down.  
 LPS: Lookups per second. How many queries have been performed each second.  
 Time: The total running time of the program.  
 
 ## TODO
-1. Better detection of failures
-2. Save incremental logs
+1. Save incremental logs
+2. Better circumvention of PIR's WHOIS rate limiting for .ORG
 
 

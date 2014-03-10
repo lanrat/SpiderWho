@@ -14,39 +14,45 @@ class NullWhoisException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
-        return repr(self.value)
+        return "Null Whois: "+repr(self.value)
 
 class WhoisTimeoutException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
-        return repr(self.value)
+        return "Whois Timeout on: "+repr(self.value)
 
 class WhoisLinesException(Exception):
     def __init__(self, value,data):
         self.value = value
         self.data = data
     def __str__(self):
-        return repr(self.value)+"\n"+repr(self.data)
+        return "Response Too Small: "+repr(self.value)+"\n"+repr(self.data)
 
 class WhoisRatelimitException(Exception):
-    def __init__(self, server, fail=False):
+    def __init__(self, server, hard_limit=True):
         self.server = server
-        self.fail = fail
+        self.hard = hard_limit
+    def strict(self):
+        if self.server in config.STRICT_SERVERS:
+            return True
+        return False
     def __str__(self):
-        return repr(self.server)
+        return "Whois Ratelimit Reached on: "+repr(self.server)+" Hard Limit: "+str(self.hard)
 
 class WhoisBadDomainException(Exception):
     def __init__(self, domain):
         self.domain = domain
     def __str__(self):
-        return repr(self.domain)
+        return "Invalid Domain: "+repr(self.domain)
 
 
 
 #static vars
 numActiveThreads_lock = threading.Lock()
 numActiveThreads = 0
+numProxyThreads_lock = threading.Lock()
+numProxyThreads = 0
 proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
 socket_timeout = 30 #seconds
@@ -89,7 +95,9 @@ def getLookupCount():
         numLookups_lock.release()
     return ret
 
-
+'''
+Active threads are threaads that are not sleeing and activly querying a reccord
+'''
 def incrementActiveThreadCount():
     global numActiveThreads_lock
     global numActiveThreads
@@ -98,7 +106,6 @@ def incrementActiveThreadCount():
         numActiveThreads += 1
     finally:
         numActiveThreads_lock.release()
-
 
 def decrementActiveThreadCount():
     global numActiveThreads_lock
@@ -120,10 +127,43 @@ def getActiveThreadCount():
         numActiveThreads_lock.release()
     return ret
 
+'''
+Proxy threads are threads with working proxies
+'''
+def incrementProxyThreadCount():
+    global numProxyThreads_lock
+    global numProxyThreads
+    numProxyThreads_lock.acquire()
+    try:
+        numProxyThreads += 1
+    finally:
+        numProxyThreads_lock.release()
+
+def decrementProxyThreadCount():
+    global numProxyThreads_lock
+    global numProxyThreads
+    numProxyThreads_lock.acquire()
+    try:
+        numProxyThreads -= 1
+    finally:
+        numProxyThreads_lock.release()
+
+def getProxyThreadCount():
+    global numProxyThreads_lock
+    global numProxyThreads
+    ret = -1
+    numProxyThreads_lock.acquire()
+    try:
+        ret = numProxyThreads
+    finally:
+        numProxyThreads_lock.release()
+    return ret
+
+
 
 #this object is used to store the results of a whois result as it is passed around
 class WhoisResult:
-    def __init__(self,domain):
+    def __init__(self, domain):
         self.domain = domain.upper()
         self.attempts = list()
         self.current_attempt = None
@@ -144,12 +184,12 @@ class WhoisResult:
             return True
         return False
 
-    def addAttempt(self,attempt):
+    def addAttempt(self, attempt):
         self.attempts.append(attempt)
         self.current_attempt = self.attempts[-1]
         return self.current_attempt
 
-    def addError(self,error):
+    def addError(self, error):
         if self.current_attempt:
             self.current_attempt.addError(error)
         else:
@@ -160,6 +200,7 @@ class WhoisResult:
         log.append("DOMAIN: "+self.domain)
         log.append("Attempts: "+str(self.numAttempts()))
         log.append("Max Attempts: "+ str(self.maxAttempts))
+        log.append("Last Whois Server: "+ str(self.next_whois_server))
         for (num, attempt) in enumerate(self.attempts):
             log.append("-----------Attempt:"+str(num)+"------------")
             log += attempt.getLogData()
@@ -184,7 +225,7 @@ class WhoisResult:
 
 #class to hold details on an attempt to whois a particular domain
 class WhoisAttempt:
-    def __init__(self,proxy):
+    def __init__(self, proxy):
         #timestamp (float)
         self.timestamp = time.time()
         self.success = False
@@ -231,7 +272,7 @@ class WhoisAttempt:
 """Class used to store the response of an individual
 whois query, may be a thick or thin result"""
 class WhoisResponse:
-    def __init__(self,server):
+    def __init__(self, server):
         self.server = server
         self.response = None
 
@@ -255,7 +296,7 @@ class WhoisResponse:
 
 #class to hold a proxy object
 class Proxy:
-    def __init__(self,ip,port,proxy_type):
+    def __init__(self,ip, port, proxy_type):
         self.server = ip
         self.port = port
         self.proxy_type = proxy_type
@@ -267,7 +308,7 @@ class Proxy:
 
     def connect(self):
         self.updateExternalIP()
-        self.client.set_proxy(self.proxy_type,self.server,self.port)
+        self.client.set_proxy(self.proxy_type, self.server, self.port)
         if not self.external_ip:
             return False
         self.ready = True
@@ -290,8 +331,8 @@ class Proxy:
             try:
                 s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
                 s.settimeout(socket_timeout)
-                s.setproxy(self.proxy_type,self.server,self.port)
-                s.connect((url.hostname,80))
+                s.setproxy(self.proxy_type,self.server, self.port)
+                s.connect((url.hostname, 80))
                 s.send('GET '+url.path+' \nHost: '+url.hostname+'\r\n\r\n')
                 r = s.recv(4096)
             except Exception as e:
@@ -319,20 +360,21 @@ class Proxy:
             record.setNextServer(whois_server)
             if whois_server in self.history:
                 tdelta = time.time() - self.history[whois_server]
-                if tdelta < config.WHOIS_SERVER_JUMP_DELAY: #if the amount of time is less than the delay
-                    if (config.WHOIS_SERVER_JUMP_DELAY-tdelta) < config.WHOIS_SERVER_SLEEP_DELAY:
+                if tdelta < config.WHOIS_SERVER_JUMP_DELAY: #if the amount of time since the last query is less than the delay
+                    if (config.WHOIS_SERVER_JUMP_DELAY-tdelta) < config.WHOIS_SERVER_SLEEP_DELAY: #if the time left to wait is less then the sleep delay
                         decrementActiveThreadCount()
                         time.sleep(config.WHOIS_SERVER_JUMP_DELAY-tdelta)
                         incrementActiveThreadCount()
                     else:
-                        raise WhoisRatelimitException(whois_server)
+                        time.sleep(0.1) #this protects us from busy waiting
+                        raise WhoisRatelimitException(whois_server, False)
             #TODO have thread remove old entries from history every x runs (runs % x)
             self.history[whois_server] = time.time()
             response = WhoisResponse(whois_server)
             incrementLookupCount()
             data = None
             try:
-                data = self.client.whois(record.domain,whois_server,0)
+                data = self.client.whois(record.domain, whois_server, 0)
             except:
                 pass
             if data == None or len(data) < 1:
@@ -342,26 +384,34 @@ class Proxy:
                 raise NullWhoisException(error)
 
             response.setResponse(data)
+            record.getLastAttempt().addResponse(response)
 
-            #TODO move these checks into a response checking function/class
             nLines = data.count('\n')
             if nLines < config.MIN_RESPONSE_LINES: #if we got less than the minimul amount of lines to be considered a valid response
+                data_lower = data.lower()
+
+                #TODO move these checks into a response checking function
 
                 ''' check for org rate limits'''
-                if "WHOIS LIMIT EXCEEDED" in data:
-                    raise WhoisRatelimitException(whois_server, True)
+                if "whois limit exceeded" in data_lower:
+                    raise WhoisRatelimitException(whois_server)
+
                 '''non-existant domain'''
-                if "Invalid domain name" in data:
+                if "invalid domain name" in data_lower:
                     raise WhoisBadDomainException(record.domain)
-                if "No match for " in data and " in the registrar database" in data:
+                if "no match for" in data_lower:
                     raise WhoisBadDomainException(record.domain)
-                if "Domain not found" in data:
+                if " is not registered here." in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "not found" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "can't get information on local domain" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "no information available" in data_lower:
                     raise WhoisBadDomainException(record.domain)
 
                 error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 raise WhoisLinesException(error,data)
-
-            record.getLastAttempt().addResponse(response)
             recurse_level -= 1
             if recurse_level > 0:
                 whois_server = self.client.findwhois_server(response.getResponse(),whois_server)
@@ -370,18 +420,18 @@ class Proxy:
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-    def __init__(self,proxy,queue,save):
+    def __init__(self, proxy, queue,save):
         threading.Thread.__init__(self)
         self.daemon = True
         self.queue = queue
         self.proxy = proxy
         self.save_queue = save
-        self.running = True
+        self.running = False
 
     def fail(self, record, error, requeue=True):
         self.proxy.errors += 1
         record.addError(error)
-        if (config.DEBUG):
+        if config.DEBUG:
             print "["+ str(self.proxy) +"] "+ error
         if requeue and record.numAttempts() < config.MAX_ATTEMPTS:
             self.queue.put(record)
@@ -391,65 +441,67 @@ class WhoisThread(threading.Thread):
 
     def run(self):
         #get and print my remote IP, also tests the proxy for usability
+        while True:
 
-        #wait untill proxy is active if down
-        while not self.proxy.connect():
-            if config.DEBUG:
-                print "WARNING: Failed to connect to proxy: " + str(self.proxy)
-            time.sleep(20)
-
-
-        if not addRemoteProxyIP(self.proxy.external_ip):
-            if config.DEBUG:
-                print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
-            return
-
-        while self.running:
-            #get next host
-            record = self.queue.get()
-            incrementActiveThreadCount()
-            record.addAttempt(WhoisAttempt(self.proxy))
-            try:
-                self.proxy.whois(record)
-            except WhoisRatelimitException as e:
-                #we reached a server who's wait is more than the allowed sleeping time
-                #give the request to another server
-                if e.fail:
-                    self.fail(record, str(e))
-                else:
-                    self.queue.put(record)
-            except proxywhois.socks.GeneralProxyError as e:
-                if e.value[0] == 6: #is there a proxy error?
-                    error = "Unable to connect to once valid proxy"
-                    print error
-                    record.addError(error)
-                    self.queue.put(record)
-                    self.running = False
-                else:
-                    error = "Error Running whois on domain:["+record.domain+"] " + str(e)
-                    self.fail(record,error)
-            except (proxywhois.socks.HTTPError, proxywhois.socks.Socks4Error, proxywhois.socks.Socks5Error) as e:
-                #bad domain name
-                error = "Invalid domain: " + record.domain
-                self.fail(record,error)
-            except (NullWhoisException, WhoisTimeoutException, WhoisLinesException) as e:
-                self.fail(record, str(e))
-            except WhoisBadDomainException as e:
-                self.fail(record, str(e), False)
-            except WhoisBadDomainException as e:
+            #wait untill proxy is active if down
+            while not self.proxy.connect():
                 if config.DEBUG:
-                    raise e
-                error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
-                self.fail(record,error)
-            else:
-                if (not config.RESULT_VALIDCHECK) or record.valid():
-                    record.current_attempt.success = True
-                    self.save_queue.put(record)
-                else:
-                    error =  "INVALID RESULT: [" + record.domain + "] Failed validity check"
-                    self.fail(record,error)
-            finally:
-                #inform the queue we are done
-                self.queue.task_done()
+                    print "WARNING: Failed to connect to proxy: " + str(self.proxy)
+                time.sleep(20)
 
-                decrementActiveThreadCount()
+
+            if not addRemoteProxyIP(self.proxy.external_ip):
+                if config.DEBUG:
+                    print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
+                return
+
+            self.running = True
+            incrementProxyThreadCount()
+
+            while self.running:
+                #get next host
+                record = self.queue.get()
+                incrementActiveThreadCount()
+                record.addAttempt(WhoisAttempt(self.proxy))
+                try:
+                    self.proxy.whois(record)
+                except WhoisRatelimitException as e:
+                    #we reached a server who's wait is more than the allowed sleeping time
+                    #give the request to another server
+                    self.fail(record, str(e))
+                except proxywhois.socks.GeneralProxyError as e:
+                    if e.value[0] == 6: #is there a proxy error?
+                        error = "Unable to connect to once valid proxy"
+                        print error
+                        record.addError(error)
+                        self.queue.put(record)
+                        self.running = False
+                    else:
+                        error = "Error Running whois on domain:["+record.domain+"] " + str(e)
+                        self.fail(record,error)
+                except (proxywhois.socks.HTTPError, proxywhois.socks.Socks4Error, proxywhois.socks.Socks5Error) as e:
+                    #bad domain name
+                    error = "Invalid domain: " + record.domain
+                    self.fail(record,error)
+                except (NullWhoisException, WhoisTimeoutException, WhoisLinesException) as e:
+                    self.fail(record, str(e))
+                except WhoisBadDomainException as e:
+                    self.fail(record, str(e), False)
+                except WhoisBadDomainException as e:
+                    error = "FAILED: [" + record.domain + "] error: " + str(sys.exc_info()[0])
+                    self.fail(record,error)
+                else:
+                    if (not config.RESULT_VALIDCHECK) or record.valid():
+                        record.current_attempt.success = True
+                        self.save_queue.put(record)
+                    else:
+                        error =  "INVALID RESULT: [" + record.domain + "] Failed validity check"
+                        self.fail(record,error)
+                finally:
+                    #inform the queue we are done
+                    self.queue.task_done()
+
+                    decrementActiveThreadCount()
+
+            decrementProxyThreadCount()
+

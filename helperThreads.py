@@ -23,8 +23,8 @@ class ManagerThread(threading.Thread):
 
     def getTotalThreadCount(self):
         '''return the number of threads that are actually doing something'''
-        #TODO make only return number of threads with a working proxy
-        return len(self.threads)
+        #return len(self.threads)
+        return whoisThread.getProxyThreadCount()
 
 
     def __init__(self):
@@ -57,8 +57,8 @@ class ManagerThread(threading.Thread):
                         else:
                             print "Unknown Proxy Type"
                         if proxy_type:
-                            proxy = whoisThread.Proxy(url.hostname,url.port,whoisThread.socks.PROXY_TYPE_HTTP)
-                            t = whoisThread.WhoisThread(proxy,self.input_queue,self.save_queue)
+                            proxy = whoisThread.Proxy(url.hostname, url.port, whoisThread.socks.PROXY_TYPE_HTTP)
+                            t = whoisThread.WhoisThread(proxy, self.input_queue, self.save_queue)
                             t.start()
                             self.threads.append(t)
         except IOError:
@@ -105,7 +105,7 @@ class EnqueueThread(threading.Thread):
     def getNumSkipped(self):
         return self.skipped
 
-    def skipDomain(self,domain):
+    def skipDomain(self, domain):
         path = self._results_folder+domain+"."+config.SAVE_EXT
         return os.path.isfile(path)
 
@@ -114,7 +114,7 @@ class EnqueueThread(threading.Thread):
 
     def run(self):
         try:
-            fh = open(config.DOMAIN_LIST,'r')
+            fh = open(config.DOMAIN_LIST, 'r')
             self.valid = True
         except IOError:
             self.valid = False
@@ -131,7 +131,7 @@ class EnqueueThread(threading.Thread):
 
 #runs in the background and saves data as we collect it
 class SaveThread(threading.Thread):
-    def __init__(self,queue):
+    def __init__(self, queue):
         threading.Thread.__init__(self)
         self._queue = queue
         self._num_saved = 0
@@ -171,9 +171,9 @@ class SaveThread(threading.Thread):
                 self._queue.task_done()
 
 
-    def saveLog(self,record):
+    def saveLog(self, record):
         try:
-            f = open(self._log_folder+record.domain+".log",'w')
+            f = open(self._log_folder+record.domain+"."+config.LOG_EXT,'w')
             f.write('\n'.join(record.getLogData()) + '\n')
             f.close()
             return True
@@ -182,9 +182,9 @@ class SaveThread(threading.Thread):
             return False
 
 
-    def saveFail(self,record):
+    def saveFail(self, record):
         try:
-            fail_file = open(self._fail_filepath,'a+')
+            fail_file = open(self._fail_filepath, 'a+')
             fail_file.write(record.domain+'\n')
             fail_file.close()
             self._num_faild += 1
@@ -194,9 +194,9 @@ class SaveThread(threading.Thread):
             return False
 
 
-    def saveData(self,record):
+    def saveData(self, record):
         try:
-            f = open(self._results_folder+record.domain+"."+config.SAVE_EXT,'w')
+            f = open(self._results_folder+record.domain+"."+config.SAVE_EXT, 'w')
             f.write(record.getData())
             f.close()
             self._num_good += 1
@@ -204,3 +204,4 @@ class SaveThread(threading.Thread):
         except IOError:
             print "Unabe to write "+record.domain+" data to file"
             return False
+

@@ -33,7 +33,9 @@ def print_status_data(manager):
     active_threads = manager.getActiveThreadCount()
     total_threads = manager.getTotalThreadCount()
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
-    lps = round((lookups-last_lookups/config.STATUS_UPDATE_DELAY), 2)
+    last_lps = (lookups-last_lookups)/config.STATUS_UPDATE_DELAY
+    total_lps = lookups/running_seconds
+    lps = round(((last_lps * 0.8) + (total_lps * 0.2)), 1)
 
     last_lookups = lookups
 
