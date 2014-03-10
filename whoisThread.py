@@ -169,6 +169,7 @@ class WhoisResult:
         self.current_attempt = None
         self.maxAttempts = False
         self.next_whois_server = None
+        self.fails = 0
 
     def getNextServer(self):
         return self.next_whois_server
@@ -189,7 +190,9 @@ class WhoisResult:
         self.current_attempt = self.attempts[-1]
         return self.current_attempt
 
-    def addError(self, error):
+    def addError(self, error, fail=True):
+        if fail:
+            self.fails += 1
         if self.current_attempt:
             self.current_attempt.addError(error)
         else:
@@ -198,7 +201,7 @@ class WhoisResult:
     def getLogData(self):
         log = list()
         log.append("DOMAIN: "+self.domain)
-        log.append("Attempts: "+str(self.numAttempts()))
+        log.append("Fails: "+str(self.fails))
         log.append("Max Attempts: "+ str(self.maxAttempts))
         log.append("Last Whois Server: "+ str(self.next_whois_server))
         for (num, attempt) in enumerate(self.attempts):
@@ -213,8 +216,8 @@ class WhoisResult:
         else:
             return self.attempts[-1].getLastResponse()
 
-    def numAttempts(self):
-        return len(self.attempts)
+    def numFails(self):
+        return self.fails
 
     def getLastAttempt(self):
         if len(self.attempts) > 0:
@@ -428,13 +431,15 @@ class WhoisThread(threading.Thread):
         self.save_queue = save
         self.running = False
 
-    def fail(self, record, error, requeue=True):
+    def fail(self, record, error, requeue=True, failIncrement=True):
         self.proxy.errors += 1
-        record.addError(error)
+        record.addError(error, failIncrement)
         if config.DEBUG:
-            print "["+ str(self.proxy) +"] "+ error
-        if requeue and record.numAttempts() < config.MAX_ATTEMPTS:
+            print "["+ str(self.proxy) +"] "+ str(error)
+        if requeue and record.numFails() < config.MAX_ATTEMPTS:
+            decrementActiveThreadCount() #TODO this should really be done cleaner
             self.queue.put(record)
+            incrementActiveThreadCount()
         else:
             record.maxAttempts = True
             self.save_queue.put(record)
@@ -468,13 +473,15 @@ class WhoisThread(threading.Thread):
                 except WhoisRatelimitException as e:
                     #we reached a server who's wait is more than the allowed sleeping time
                     #give the request to another server
-                    self.fail(record, str(e))
+                    self.fail(record, str(e), True, False)
                 except proxywhois.socks.GeneralProxyError as e:
                     if e.value[0] == 6: #is there a proxy error?
                         error = "Unable to connect to once valid proxy"
                         print error
                         record.addError(error)
+                        decrementActiveThreadCount() #TODO this should really be done cleaner
                         self.queue.put(record)
+                        incrementActiveThreadCount()
                         self.running = False
                     else:
                         error = "Error Running whois on domain:["+record.domain+"] " + str(e)
