@@ -51,5 +51,6 @@ Time: The total running time of the program.
 ## TODO
 1. Save incremental logs
 2. Better circumvention of PIR's WHOIS rate limiting for .ORG
+3. Support for whois servers that forward to http
 
 
