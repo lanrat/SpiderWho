@@ -11,28 +11,39 @@ import string
 
 #NULL whois result Exception
 class NullWhoisException(Exception):
+    count = 0
     def __init__(self, value):
+        NullWhoisException.count += 1
         self.value = value
     def __str__(self):
         return "Null Whois: "+repr(self.value)
 
+#TODO this has been deprecated to the exceptions inside proxywhois
 class WhoisTimeoutException(Exception):
+    count = 0
     def __init__(self, value):
+        WhoisTimeoutException.count += 1
         self.value = value
     def __str__(self):
         return "Whois Timeout on: "+repr(self.value)
 
 class WhoisLinesException(Exception):
+    count = 0
     def __init__(self, value,data):
+        WhoisLinesException.count += 1
         self.value = value
         self.data = data
     def __str__(self):
         return "Response Too Small: "+repr(self.value)+"\n"+repr(self.data)
 
 class WhoisRatelimitException(Exception):
-    def __init__(self, server, hard_limit=True):
+    count = 0
+    def __init__(self, server, hard_limit=True, forceInc=False):
+        if hard_limit:
+            WhoisRatelimitException.count += 1
         self.server = server
         self.hard = hard_limit
+        self.forceInc = forceInc
     def strict(self):
         if self.server in config.STRICT_SERVERS:
             return True
@@ -41,11 +52,33 @@ class WhoisRatelimitException(Exception):
         return "Whois Ratelimit Reached on: "+repr(self.server)+" Hard Limit: "+str(self.hard)
 
 class WhoisBadDomainException(Exception):
+    count = 0
     def __init__(self, domain):
+        WhoisBadDomainException.count += 1
         self.domain = domain
     def __str__(self):
         return "Invalid Domain: "+repr(self.domain)
 
+#TODO currently unused
+class WhoisHTTPReferralException(Exception):
+    '''whois result refers us to a web address, possibly due to rate limiting'''
+    count = 0
+    def __init__(self, domain, server, url):
+        WhoisHTTPReferralException.count += 1
+        self.domain = domain
+        self.server = server
+        self.url = url
+    def __str__(self):
+        return "HTTP Refferal domain: "+repr(self.domain)+" server: "+repr(self.server)+" url: "+repr(self.url) 
+
+
+def printExceptionCounts():
+    print "WhoisRatelimitException:\t" + str(WhoisRatelimitException.count)
+    print "NullWhoisException:\t" + str(NullWhoisException.count)
+    print "WhoisTimeoutException:\t" + str(WhoisTimeoutException.count)
+    print "WhoisBadDomainException:\t" + str(WhoisBadDomainException.count)
+    print "WhoisHTTPReferralException:\t" + str(WhoisHTTPReferralException.count)
+    print "WhoisLinesException:\t" + str(WhoisLinesException.count)
 
 
 #static vars
@@ -206,7 +239,9 @@ class WhoisResult:
         log.append("Last Whois Server: "+ str(self.next_whois_server))
         for (num, attempt) in enumerate(self.attempts):
             log.append("-----------Attempt:"+str(num)+"------------")
-            log += attempt.getLogData()
+            if not (attempt.success == False and len(attempt.responses) == 0 and len(attempt.errors) == 0):
+                #dont log when one proxy hands off to another without doing any work
+                log += attempt.getLogData()
         return log
 
     def getData(self,all_data=True):
@@ -378,12 +413,13 @@ class Proxy:
             data = None
             try:
                 data = self.client.whois(record.domain, whois_server, 0)
-            except:
-                pass
+            except proxywhois.ServerTroubleException as e:
+                raise WhoisRatelimitException(whois_server, False, True)
             if data == None or len(data) < 1:
                 error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 if config.DEBUG:
                     print error
+                #TODO this may often be a WhoisRatelimitException case
                 raise NullWhoisException(error)
 
             response.setResponse(data)
@@ -395,14 +431,19 @@ class Proxy:
 
                 #TODO move these checks into a response checking function
 
-                ''' check for org rate limits'''
-                if "whois limit exceeded" in data_lower:
+                ''' check for rate limits'''
+                #TODO parse limit and add to exception
+                if "limit exceeded" in data_lower:
+                    raise WhoisRatelimitException(whois_server)
+                if "please note that the query limit is" in data_lower:
+                    raise WhoisRatelimitException(whois_server)
+                if "quota exceeded, please wait" in data_lower:
                     raise WhoisRatelimitException(whois_server)
 
                 '''non-existant domain'''
                 if "invalid domain name" in data_lower:
                     raise WhoisBadDomainException(record.domain)
-                if "no match for" in data_lower:
+                if "no match" in data_lower:
                     raise WhoisBadDomainException(record.domain)
                 if " is not registered here." in data_lower:
                     raise WhoisBadDomainException(record.domain)
@@ -412,9 +453,46 @@ class Proxy:
                     raise WhoisBadDomainException(record.domain)
                 if "no information available" in data_lower:
                     raise WhoisBadDomainException(record.domain)
+                if "no matching record" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "invalid query" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "out of this registry" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "out of registry" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "domain name invalid format" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "no data found" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+                if "incorrect domain name" in data_lower:
+                    raise WhoisBadDomainException(record.domain)
+
+                ''' http whois errors'''
+                #TODO WGET http url
+                #TODO some of these http errors may never acually be seen due to the linux whois client being hardcoded
+                if "this tld has no whois server, but you can access the whois database at" in data_lower:
+                    #url = data.splitlines()[-1])
+                    #raise WhoisHTTPReferralException(record.domain, whois_server, url)
+                    return response
+                if 'registered\nnot the default registrar' in data_lower:
+                    #url = data.splitlines()[-1])
+                    #raise WhoisHTTPReferralException(record.domain, whois_server, url)
+                    return response
+                if 'this tld has no whois server, but you can access the whois database at' in data_lower:
+                    #url = data.splitlines()[-1])
+                    #raise WhoisHTTPReferralException(record.domain, whois_server, url)
+                    return response
+
+                #corner case
+                if whois_server == "to.whois-servers.net" and "tonic whoisd" in data_lower:
+                    pass
+                if whois_server == "it.whois-servers.net" and "unassignable" in data_lower:
+                    pass
 
                 error = "Error: recieved small "+str(nLines)+" response for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 raise WhoisLinesException(error,data)
+
             recurse_level -= 1
             if recurse_level > 0:
                 whois_server = self.client.findwhois_server(response.getResponse(),whois_server)
@@ -432,8 +510,9 @@ class WhoisThread(threading.Thread):
         self.running = False
 
     def fail(self, record, error, requeue=True, failIncrement=True):
-        self.proxy.errors += 1
-        record.addError(error, failIncrement)
+        if failIncrement or config.DEBUG:
+            self.proxy.errors += 1
+            record.addError(error, failIncrement)
         if config.DEBUG:
             print "["+ str(self.proxy) +"] "+ str(error)
         if requeue and record.numFails() < config.MAX_ATTEMPTS:
@@ -470,10 +549,18 @@ class WhoisThread(threading.Thread):
                 record.addAttempt(WhoisAttempt(self.proxy))
                 try:
                     self.proxy.whois(record)
+                except proxywhois.WhoisNoServerException as e:
+                    #the domain does not have a valid known whois server, may be an http server
+                    #nothing we can do, skip domain
+                    self.fail(record, str(e), False)
                 except WhoisRatelimitException as e:
                     #we reached a server who's wait is more than the allowed sleeping time
                     #give the request to another server
-                    self.fail(record, str(e), True, False)
+                    if e.hard:
+                        #TODO dynamically change whois server allowed rate
+                        self.fail(record, str(e), True, (config.LAZY_MODE or e.forceInc))
+                    else:
+                        self.queue.put(record)
                 except proxywhois.socks.GeneralProxyError as e:
                     if e.value[0] == 6: #is there a proxy error?
                         error = "Unable to connect to once valid proxy"

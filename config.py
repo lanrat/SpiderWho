@@ -8,6 +8,7 @@ RESULT_VALIDCHECK = False
 SKIP_DONE = False
 PRINT_STATUS = True
 SAVE_LOGS = False
+LAZY_MODE = False
 
 OUTPUT_FOLDER = "out/"
 RESULTS_FOLDER = "results/"
@@ -24,7 +25,6 @@ MIN_RESPONSE_LINES = 4
 
 '''setting this value to less than 2 will greatly reduce the reliability of the program'''
 MAX_ATTEMPTS = 3
-RATELIMIT_ATTEMPTS = 5
 
 STATUS_UPDATE_DELAY = 1.0
 

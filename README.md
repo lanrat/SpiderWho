@@ -32,6 +32,11 @@ Comments are allowed and start with "#".
 Domain lists should have one domain per line.
 List can contain domain names or IP addresses.
 
+### Lazy mode
+Lazy mode will increase your LPS and overall speed at the cost of accurace.
+In this mode if a whois server has a rate limit much stronger than what we expect we will fail the domain after 3 attempts.
+In normal mode we will try untill we get a result.
+
 ### Output
 ```
 Domains Lookups Good    Fail    Saved   Skipped ActiveT TotalT  LPS     Time
@@ -49,8 +54,8 @@ LPS: Lookups per second. How many queries have been performed each second.
 Time: The total running time of the program.  
 
 ## TODO
-1. Save incremental logs
-2. Better circumvention of PIR's WHOIS rate limiting for .ORG
-3. Support for whois servers that forward to http
+1. Ataptive query backoff
+2. Support for whois servers that forward to http
+
 
 

@@ -9,6 +9,21 @@ socket_timeout = 30 #seconds
 
 debug = False
 
+class WhoisNoServerException(Exception):
+    def __init__(self, server):
+        self.server = server
+    def __str__(self):
+        return "Invalid Server: "+repr(self.server)
+
+class ServerTroubleException(Exception):
+    def __init__(self, server, error):
+        self.server = server
+        self.error = error
+    def __str__(self):
+        return repr(self.server) + repr(self.error)
+
+
+
 def enforce_ascii(a):
     if isinstance(a, str) or isinstance(a, unicode):
         # return a.encode('ascii', 'replace')
@@ -123,45 +138,67 @@ class NICClient(object) :
         #convert hostname to ascii
         hostname = hostname.encode('ascii','ignore')
 
-        s.connect((hostname, 43))
-        """send takes bytes as an input
-        """
-        queryBytes = None
-
-        tld = self.getTLD(query)
-        if tld:
-            query = self.TLDSpecificQuery(tld,query,hostname)
-
-        if (hostname == NICClient.DENICHOST):
-            #print 'the domain is in NIC DENIC'
-            queryBytes = ("-T dn,ace -C UTF-8 " + query + "\r\n").encode()
-            #print 'queryBytes:', queryBytes
-        else:
-            queryBytes = (query  + "\r\n").encode()
-        s.send(queryBytes)
-        """recv returns bytes
-        """
-        #print s
-        response = b''
-        while True:
-            d = s.recv(4096)
-            response += d
-            if not d:
-                break
-        s.close()
-        #pdb.set_trace()
-        nhost = None
         if debug:
-            print '===========response=============='
-            print response
-            print "================================="
-        response = enforce_ascii(response)
-        if (flags & NICClient.WHOIS_RECURSE and nhost == None):
-            nhost = self.findwhois_server(response.decode(), hostname)
-        if (nhost != None):
-            response += self.whois(query, nhost, 0)
-        #print 'returning whois response'
-        return response.decode()
+            print "==DEBUG: Attempting to connect to: "+hostname
+
+        try:
+            s.connect((hostname, 43))
+            """send takes bytes as an input
+            """
+            queryBytes = None
+
+            tld = self.getTLD(query)
+            if tld:
+                query = self.TLDSpecificQuery(tld,query,hostname)
+
+            if (hostname == NICClient.DENICHOST):
+                #print 'the domain is in NIC DENIC'
+                queryBytes = ("-T dn,ace -C UTF-8 " + query + "\r\n").encode()
+                #print 'queryBytes:', queryBytes
+            else:
+                queryBytes = (query  + "\r\n").encode()
+            s.send(queryBytes)
+            """recv returns bytes
+            """
+            #print s
+            response = b''
+            while True:
+                d = s.recv(4096)
+                response += d
+                if not d:
+                    break
+            #pdb.set_trace()
+            nhost = None
+            if debug:
+                print '===========response=============='
+                print response
+                print "================================="
+            response = enforce_ascii(response)
+            if (flags & NICClient.WHOIS_RECURSE and nhost == None):
+                nhost = self.findwhois_server(response.decode(), hostname)
+            if (nhost != None):
+                r = self.whois(query, nhost, 0)
+                if not r:
+                    return
+                response += r
+            #print 'returning whois response'
+            return response.decode()
+        except socks.socket.gaierror as e:
+            #bad hostname
+            if debug:
+                print "This TLD has no whois server."
+                return
+            else:
+                raise WhoisNoServerException(hostname)
+        except (socks.socket.error, socks.socket.timeout) as e:
+            error = ServerTroubleException(hostname,repr(e))
+            if debug:
+                print error
+                return
+            raise error
+
+        finally:
+            s.close()
 
     def getTLD(self, domain):
         if (domain.endswith("-NORID")):
@@ -214,10 +251,14 @@ class NICClient(object) :
 
 if __name__ == "__main__":
     import sys #for args
+    import traceback
+    debug = True
     flags = 0
     nic_client = NICClient()
     #(options, args) = parse_command_line(sys.argv)
     #if (options.b_quicklookup is True):
     #    flags = flags|NICClient.WHOIS_QUICK
     #print(nic_client.whois_lookup(options.__dict__, args[1], flags))
-    print(nic_client.whois_lookup(None, sys.argv[1], 0))
+    data = nic_client.whois_lookup(None, sys.argv[1], flags)
+    if data:
+        print data
