@@ -8,6 +8,7 @@ import re
 import urlparse
 import config
 import string
+import random
 
 #NULL whois result Exception
 class NullWhoisException(Exception):
@@ -404,7 +405,7 @@ class Proxy:
                         time.sleep(config.WHOIS_SERVER_JUMP_DELAY-tdelta)
                         incrementActiveThreadCount()
                     else:
-                        time.sleep(0.1) #this protects us from busy waiting
+                        time.sleep(random.random()) #this protects us from busy waiting
                         raise WhoisRatelimitException(whois_server, False)
             #TODO have thread remove old entries from history every x runs (runs % x)
             self.history[whois_server] = time.time()

@@ -13,13 +13,18 @@ import whoisThread #TODO remove the need to access status functions from manager
 
 last_lookups = 0
 
+def set_proc_name(newname):
+    try:
+        import setproctitle
+        setproctitle.setproctitle(newname)
+    except:
+        pass
+
 def print_status_line():
     '''prints the statusline header'''
-    sys.stdout.write("Domains\tLookups\tGood\tFail\tSaved\tActive/Proxies\tLPS\tTime")
+    sys.stdout.write("Domains\tLookups\tGood\tFail\tSaved\tActive/Proxies\tLPS\tQsize\tTime")
     sys.stdout.write("\n")
     sys.stdout.flush()
-
-counter = 0
 
 def print_status_data(manager):
     '''updates the statusline data'''
@@ -37,20 +42,14 @@ def print_status_data(manager):
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
     last_lps = (lookups-last_lookups)/config.STATUS_UPDATE_DELAY
     total_lps = lookups/running_seconds
+    q_size = manager.input_queue.qsize()
     lps = round(((last_lps * 0.8) + (total_lps * 0.2)), 1)
 
     last_lookups = lookups
 
-    #TODO test deadlock
-    global counter
-    counter += 1
-    if counter == 600:
-        counter = 0
-        sys.stdout.write("\n")
-    
+    sys.stdout.write("\r%d  \t%d  \t%d  \t%d  \t%d  \t%d / %d  \t%.1f  \t%d \t%s " %
+            (domains, lookups, good_saved, fail_saved, total_saved, active_threads, total_threads, lps, q_size, running_time))
 
-    sys.stdout.write("\r%d  \t%d  \t%d  \t%d  \t%d  \t%d / %d  \t%.1f  \t%s  " %
-            (domains, lookups, good_saved, fail_saved, total_saved, active_threads, total_threads, lps, running_time))
     sys.stdout.flush()
 
 
@@ -87,11 +86,10 @@ def run():
             sys.stdout.write("\n")
         if config.SAVE_LOGS:
             whoisThread.printExceptionCounts()
-        if config.DEBUG:
-            print "Done!"
 
 
 if __name__ == '__main__':
+    set_proc_name("SpiderWho")
     parser = argparse.ArgumentParser()
     parser.add_argument("proxies", help="file containing a list of http proxies and ports")
     parser.add_argument("domains", help="file containing a list of domains to use")
