@@ -238,8 +238,8 @@ class WhoisResult:
         log.append("Max Attempts: "+ str(self.maxAttempts))
         log.append("Last Whois Server: "+ str(self.next_whois_server))
         for (num, attempt) in enumerate(self.attempts):
-            log.append("-----------Attempt:"+str(num)+"------------")
             if not (attempt.success == False and len(attempt.responses) == 0 and len(attempt.errors) == 0):
+                log.append("-----------Attempt:"+str(num)+"------------")
                 #dont log when one proxy hands off to another without doing any work
                 log += attempt.getLogData()
         return log
