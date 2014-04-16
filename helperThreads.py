@@ -107,7 +107,7 @@ class EnqueueThread(threading.Thread):
             print "Unable to open file: "+ config.DOMAIN_LIST
             return
         for l in fh:
-            l = l.strip().upper()
+            l = l.strip().lower()
             if len(l) > 3:
                 if not (config.SKIP_DONE and self.skipDomain(l)):
                     self._queue.put(whoisThread.WhoisResult(l))
