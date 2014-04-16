@@ -13,20 +13,6 @@ class ManagerThread(threading.Thread):
     '''main thread that is responsible for starting and keeping
     track of all other threads'''
 
-    def getActiveThreadCount(self):
-        '''returns the number of threads spawned'''
-        return whoisThread.getActiveThreadCount()
-
-    def getLookupCount(self):
-        '''returns the number whois queries submitted'''
-        return whoisThread.getLookupCount()
-
-    def getTotalThreadCount(self):
-        '''return the number of threads that are actually doing something'''
-        #return len(self.threads)
-        return whoisThread.getProxyThreadCount()
-
-
     def __init__(self):
         threading.Thread.__init__(self)
         self.input_queue = Queue(maxsize=config.MAX_QUEUE_SIZE)

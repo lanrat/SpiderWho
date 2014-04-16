@@ -33,7 +33,7 @@ Domain lists should have one domain per line.
 List can contain domain names or IP addresses.
 
 ### Lazy mode
-Lazy mode will increase your LPS and overall speed at the cost of accurace.
+Lazy mode will increase your LPS and overall speed at the cost of accuracy
 In this mode if a whois server has a rate limit much stronger than what we expect we will fail the domain after 3 attempts.
 In normal mode we will try untill we get a result.
 
@@ -54,8 +54,9 @@ LPS: Lookups per second. How many queries have been performed each second.
 Time: The total running time of the program.  
 
 ## TODO
-1. Ataptive query backoff
+1. Adaptive query backoff
 2. Support for whois servers that forward to http
+3. Update this README
 
 
 

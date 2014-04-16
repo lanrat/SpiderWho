@@ -9,7 +9,7 @@ import datetime
 import argparse
 import config
 import sys
-import whoisThread #TODO remove the need to access status functions from manager thread
+import whoisThread
 
 last_lookups = 0
 
@@ -32,13 +32,13 @@ def print_status_data(manager):
     running_seconds = (time.time() - config.START_TIME)
 
     domains = manager.input_thread.getDomainCount()
-    lookups = manager.getLookupCount()
+    lookups = whoisThread.getLookupCount()
     good_saved = manager.save_thread.getNumGood()
     fail_saved = manager.save_thread.getNumFails()
     total_saved = manager.save_thread.getNumSaved()
     skipped = manager.input_thread.getNumSkipped()
-    active_threads = manager.getActiveThreadCount()
-    total_threads = manager.getTotalThreadCount()
+    active_threads = whoisThread.getActiveThreadCount()
+    total_threads = whoisThread.getProxyThreadCount()
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
     last_lps = (lookups-last_lookups)/config.STATUS_UPDATE_DELAY
     total_lps = lookups/running_seconds
@@ -72,11 +72,11 @@ def run():
     time.sleep(0.5)
 
     try:
-        while manager.getTotalThreadCount() >= 1 and manager.isAlive():
+        while whoisThread.getProxyThreadCount() >= 1 and manager.isAlive():
             if config.PRINT_STATUS:
                 print_status_data(manager)
             time.sleep(config.STATUS_UPDATE_DELAY)
-        if (manager.getTotalThreadCount() == 0):
+        if (whoisThread.getProxyThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
         pass
