@@ -91,7 +91,6 @@ numProxyThreads_lock = threading.Lock()
 numProxyThreads = 0
 proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
-socket_timeout = 30 #seconds
 numLookups_lock = threading.Lock()
 numLookups = 0
 
@@ -371,7 +370,7 @@ class Proxy:
         for i in range(3): #try 3 times
             try:
                 s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
-                s.settimeout(socket_timeout)
+                s.settimeout(config.WHOIS_TIMEOUT_SECONDS)
                 s.setproxy(self.proxy_type,self.server, self.port)
                 s.connect((url.hostname, 80))
                 s.send('GET '+url.path+' \nHost: '+url.hostname+'\r\n\r\n')
@@ -434,7 +433,6 @@ class Proxy:
 
                 if len(data_lower.strip()) == 0:
                     raise NullWhoisException("whitespace response",True)
-
 
                 #TODO move these checks into a response checking function
 
@@ -556,7 +554,7 @@ class WhoisThread(threading.Thread):
             while not self.proxy.connect():
                 if config.DEBUG:
                     print "WARNING: Failed to connect to proxy: " + str(self.proxy)
-                time.sleep(20)
+                time.sleep(config.PROXY_FAIL_RECONNECT_DELAY)
 
 
             if not addRemoteProxyIP(self.proxy.external_ip):

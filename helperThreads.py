@@ -69,6 +69,16 @@ class ManagerThread(threading.Thread):
         if config.DEBUG:
             print "Done loading domains to queue"
 
+        while self.input_queue.qsize() > whoisThread.getProxyThreadCount():
+            time.sleep(config.WHOIS_SERVER_JUMP_DELAY)
+
+        #when the reamining queries are all waiting for an open proxy, reduce the delay
+        config.WHOIS_SERVER_JUMP_DELAY = config.WHOIS_SERVER_SLEEP_DELAY
+        config.WHOIS_SERVER_SLEEP_DELAY = 1
+
+        #TODO
+        print "joining queue"
+
         self.input_queue.join()
 
         if config.DEBUG:

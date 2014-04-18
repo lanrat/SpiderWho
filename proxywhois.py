@@ -5,7 +5,7 @@ with some modifications for proxy support
 """
 
 import socks
-socket_timeout = 30 #seconds
+import config
 
 debug = False
 
@@ -129,7 +129,7 @@ class NICClient(object) :
             print 'parameters given:', query, hostname, flags
         #pdb.set_trace()
         s = socks.socksocket(socks.socket.AF_INET, socks.socket.SOCK_STREAM)
-        s.settimeout(socket_timeout)
+        s.settimeout(config.WHOIS_TIMEOUT_SECONDS)
 
         #added code for proxy
         if (self.use_proxy):
