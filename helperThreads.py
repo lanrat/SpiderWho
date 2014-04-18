@@ -76,9 +76,6 @@ class ManagerThread(threading.Thread):
         config.WHOIS_SERVER_JUMP_DELAY = config.WHOIS_SERVER_SLEEP_DELAY
         config.WHOIS_SERVER_SLEEP_DELAY = 1
 
-        #TODO
-        print "joining queue"
-
         self.input_queue.join()
 
         if config.DEBUG:
