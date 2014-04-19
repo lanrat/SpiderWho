@@ -524,7 +524,7 @@ class Proxy:
 
 #main thread which handles all whois lookups, one per proxy
 class WhoisThread(threading.Thread):
-    def __init__(self, proxy, queue,save):
+    def __init__(self, proxy, queue, save):
         threading.Thread.__init__(self)
         self.daemon = True
         self.queue = queue
@@ -539,12 +539,12 @@ class WhoisThread(threading.Thread):
         if config.DEBUG:
             print "["+ str(self.proxy) +"] "+ str(error)
         if requeue and record.numFails() < config.MAX_ATTEMPTS:
-            decrementActiveThreadCount() #TODO this should really be done cleaner
             self.queue.put(record)
-            incrementActiveThreadCount()
         else:
             record.maxAttempts = True
+            decrementActiveThreadCount()
             self.save_queue.put(record)
+            incrementActiveThreadCount()
 
     def run(self):
         #get and print my remote IP, also tests the proxy for usability
@@ -571,7 +571,11 @@ class WhoisThread(threading.Thread):
                 incrementActiveThreadCount()
                 record.addAttempt(WhoisAttempt(self.proxy))
                 try:
+                    if config.DEBUG:
+                        print str(self.proxy) +" trying to whois: "+record.domain
                     self.proxy.whois(record)
+                    if config.DEBUG:
+                        print str(self.proxy) +" whois return on: "+record.domain
                 except proxywhois.WhoisNoServerException as e:
                     #the domain does not have a valid known whois server, may be an http server
                     #nothing we can do, skip domain
@@ -590,9 +594,7 @@ class WhoisThread(threading.Thread):
                         if config.DEBUG:
                             print error
                         record.addError(error)
-                        decrementActiveThreadCount() #TODO this should really be done cleaner
                         self.queue.put(record)
-                        incrementActiveThreadCount()
                         self.running = False
                     else:
                         error = "Error Running whois on domain:["+record.domain+"] " + str(e)
@@ -611,14 +613,15 @@ class WhoisThread(threading.Thread):
                 else:
                     if (not config.RESULT_VALIDCHECK) or record.valid():
                         record.current_attempt.success = True
+                        decrementActiveThreadCount()
                         self.save_queue.put(record)
+                        incrementActiveThreadCount()
                     else:
                         error =  "INVALID RESULT: [" + record.domain + "] Failed validity check"
                         self.fail(record,error)
                 finally:
                     #inform the queue we are done
                     self.queue.task_done()
-
                     decrementActiveThreadCount()
 
             decrementProxyThreadCount()
