@@ -93,7 +93,7 @@ def run():
 if __name__ == '__main__':
     set_proc_name("SpiderWho")
     parser = argparse.ArgumentParser()
-    parser.add_argument("proxies", help="file containing a list of http proxies and ports")
+    parser.add_argument("proxies", help="file containing a list of proxies and ports")
     parser.add_argument("domains", help="file containing a list of domains to use")
     parser.add_argument("-n", "--numProxies", help="Maximum number of proxies to use. All=0 Default: "+str(config.NUM_PROXIES), type=int, default=config.NUM_PROXIES)
     parser.add_argument("-o", "--out", help="Output directory to store results. Default: "+config.OUTPUT_FOLDER, default=config.OUTPUT_FOLDER)

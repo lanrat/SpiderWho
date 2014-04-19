@@ -10,7 +10,7 @@ usage: SpiderWho.py [-h] [-n NUMPROXIES] [-o OUT] [-s] [-d] [-e] [-l] [-q]
                     proxies domains
 
 positional arguments:
-  proxies               file containing a list of http proxies and ports
+  proxies               file containing a list of proxies and ports
   domains               file containing a list of domains to use
 
 optional arguments:
@@ -55,6 +55,10 @@ ActiveT: The number of active threads actively performing a WHOIS query not wait
 TotalT: The total number of working and active proxies. This number may change as proxies provided go up or down.  
 LPS: Lookups per second. How many queries have been performed each second.  
 Time: The total running time of the program.  
+
+### Advanced Settings
+Advanced settings can be changed in config.py.  
+config.py contains default values that can be overridden  by command arguments.
 
 ## TODO
 1. Adaptive query back-off
