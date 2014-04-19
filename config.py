@@ -55,7 +55,7 @@ WHOIS_SERVER_JUMP_DELAY = 20
 '''Minimum seconds to sleep when waiting for a JUMP_DELAY'''
 WHOIS_SERVER_SLEEP_DELAY = 5
 
-'''Amount of seconds to give each whois query before wailing'''
+'''Amount of seconds to give each whois query before failing'''
 WHOIS_TIMEOUT_SECONDS = 10
 
 '''Amount of seconds to wait before trying to reconnect to a failed proxy'''
