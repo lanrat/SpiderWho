@@ -5,37 +5,40 @@
 
 ## Usage
 ```
-usage: SpiderWho.py [-h] [-np NP] [-o O] [-s] [-d] [-e] [-l] [-q]
-                    proxy_list domain_list
+usage: SpiderWho.py [-h] [-n NUMPROXIES] [-o OUT] [-s] [-d] [-e] [-l] [-q]
+                    [-z]
+                    proxies domains
 
 positional arguments:
-  proxy_list   file containing a list of http proxies and ports
-  domain_list  file containing a list of domains to use
+  proxies               file containing a list of http proxies and ports
+  domains               file containing a list of domains to use
 
 optional arguments:
-  -h, --help   show this help message and exit
-  -np NP       Maximum number of proxies to use. Default: 0/All
-  -o O         Output directory to store results. Default: out/
-  -s           Skip domains that already have results. Default: false
-  -d           Enable debug printing
-  -e           Enable Email validity check
-  -l           Enable log saving
-  -q           Disable status printing
+  -h, --help            show this help message and exit
+  -n NUMPROXIES, --numProxies NUMPROXIES
+                        Maximum number of proxies to use. All=0 Default: 0
+  -o OUT, --out OUT     Output directory to store results. Default: out/
+  -s, --skip            Skip domains that already have results. Default: False
+  -d, --debug           Enable debug printing
+  -e, --emailVerify     Enable Email validity check
+  -l, --log             Enable log saving
+  -q, --quiet           Disable status printing
+  -z, --lazy            Enable Lazy mode. Give up after a few ratelimits
 ```
 
 ### Proxy Lists
-Proxy lists should have one proxy per line in the following format:
-`http://MyProxyHost:port`.
-Comments are allowed and start with "#".
+Proxy lists should have one proxy per line in the following format:  
+`http://MyProxyHost:port`.  
+Both http and socks proxies are supported Comments are allowed and start with "#".
 
 ### Domain Lists
 Domain lists should have one domain per line.
-List can contain domain names or IP addresses.
+List may contain domain names or IP addresses.
 
 ### Lazy mode
 Lazy mode will increase your LPS and overall speed at the cost of accuracy
-In this mode if a whois server has a rate limit much stronger than what we expect we will fail the domain after 3 attempts.
-In normal mode we will try untill we get a result.
+In lazy mode, if a WHOIS server has a rate limit much stronger than what we expect we will fail the domain after 3 attempts.
+In normal mode we will try until we get a result.
 
 ### Output
 ```
@@ -54,9 +57,7 @@ LPS: Lookups per second. How many queries have been performed each second.
 Time: The total running time of the program.  
 
 ## TODO
-1. Adaptive query backoff
+1. Adaptive query back-off
 2. Support for whois servers that forward to http
 3. Update this README
-
-
 
