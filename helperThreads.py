@@ -43,7 +43,7 @@ class ManagerThread(threading.Thread):
                         else:
                             print "Unknown Proxy Type"
                         if proxy_type:
-                            proxy = whoisThread.Proxy(url.hostname, url.port, whoisThread.socks.PROXY_TYPE_HTTP)
+                            proxy = whoisThread.Proxy(url.hostname, url.port, proxy_type)
                             t = whoisThread.WhoisThread(proxy, self.input_queue, self.save_queue)
                             t.start()
                             self.threads.append(t)
@@ -73,6 +73,7 @@ class ManagerThread(threading.Thread):
             time.sleep(config.WHOIS_SERVER_JUMP_DELAY)
 
         #when the reamining queries are all waiting for an open proxy, reduce the delay
+        #TODO this does not always prevent getting stuck on the last few
         config.WHOIS_SERVER_JUMP_DELAY = config.WHOIS_SERVER_SLEEP_DELAY
         config.WHOIS_SERVER_SLEEP_DELAY = 1
 

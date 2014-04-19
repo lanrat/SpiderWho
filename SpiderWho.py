@@ -74,7 +74,7 @@ def run():
     time.sleep(0.5)
 
     try:
-        while whoisThread.getProxyThreadCount() >= 1 and manager.isAlive():
+        while whoisThread.getProxyThreadCount() > 0 and manager.isAlive():
             if config.PRINT_STATUS:
                 print_status_data(manager)
             time.sleep(config.STATUS_UPDATE_DELAY)
