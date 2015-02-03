@@ -446,6 +446,8 @@ class Proxy:
                     raise WhoisRatelimitException(whois_server)
                 if "try again later" in data_lower:
                     raise WhoisRatelimitException(whois_server)
+                if "limit reached" in data_lower:
+                    raise WhoisRatelimitException(whois_server)
 
                 '''non-existant domain'''
                 if "invalid domain name" in data_lower:
