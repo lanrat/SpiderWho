@@ -88,11 +88,21 @@ def print_status_data(manager):
         failp = 100.0 * ( float(fail_saved) / float(total_saved + skipped) )
 
     # term info
-    #(width, height) = getTerminalSize()
-    
+    (width, height) = getTerminalSize()
+    # clear screen
+    sys.stdout.write('\r' + (' ' * width))
+   
     data = "\r%9d  %9d  %5.1f%%  %9d  %6d / %-6d  %6.1f  %s " % (allDomains, domains, failp, good_saved, active_threads, total_threads, lps, running_time)
-
     sys.stdout.write(data)
+
+    q_size = manager.input_queue.qsize()
+    if q_size < (config.MAX_QUEUE_SIZE/10):
+        sys.stdout.write(" WARNING: input queue is %d " % q_size)
+
+    sq_size = manager.save_queue.qsize()
+    if sq_size > (config.MAX_QUEUE_SIZE/5):
+        sys.stdout.write(" WARNING: save queue is %d " % sq_size)
+
     sys.stdout.flush()
 
 
@@ -122,6 +132,11 @@ def run():
         if (whoisThread.getProxyThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
+        domains = manager.input_thread.getDomainCount()
+        skipped = manager.input_thread.getNumSkipped()
+        total_threads = whoisThread.getProxyThreadCount()
+        fail_saved = manager.save_thread.getNumFails()
+        print "\nExamined at least %d domains" % ((domains + skipped) - (config.MAX_QUEUE_SIZE*2 + total_threads))
         pass
     finally:
         if config.PRINT_STATUS:
