@@ -56,7 +56,10 @@ def getTerminalSize():
 
 def print_status_line():
     '''prints the statusline header'''
-    title = "\r%9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("All", "New", "Fail", "Completed", "Active", "Proxies", "LPS", "Time")
+    rps = "LPS"
+    if config.DPS:
+        rps = "DPS"
+    title = "\r%9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("All", "New", "Fail", "Completed", "Active", "Proxies", rps, "Time")
     sys.stdout.write(title)
     sys.stdout.write("\n")
     sys.stdout.flush()
@@ -69,7 +72,6 @@ def print_status_data(manager):
     running_seconds = (time.time() - config.START_TIME)
 
     domains = manager.input_thread.getDomainCount()
-    lookups = whoisThread.getLookupCount()
     good_saved = manager.save_thread.getNumGood()  
     fail_saved = manager.save_thread.getNumFails()
     total_saved = manager.save_thread.getNumSaved()
@@ -77,15 +79,21 @@ def print_status_data(manager):
     active_threads = whoisThread.getActiveThreadCount()
     total_threads = whoisThread.getProxyThreadCount()
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
-    last_lps = (lookups-last_lookups)/config.STATUS_UPDATE_DELAY
-    total_lps = lookups/running_seconds
-    lps = round(((last_lps * 0.8) + (total_lps * 0.2)), 1)
-    last_lookups = lookups
+
+    rlookups = good_saved
+    if not config.DPS:
+        rlookups = whoisThread.getLookupCount()
+
+    last_lps = (rlookups-last_lookups)/config.STATUS_UPDATE_DELAY
+    total_lps = rlookups/running_seconds
+    lps = (last_lps * 0.8) + (total_lps * 0.2)
+    last_lookups = rlookups
+
     allDomains = domains + skipped
     
     failp = 0.0
     if total_saved != 0:
-        failp = 100.0 * ( float(fail_saved) / float(total_saved + skipped) )
+        failp = 100.0 * ( float(fail_saved) / float(total_saved) )
 
     # term info
     (width, height) = getTerminalSize()
@@ -132,11 +140,10 @@ def run():
         if (whoisThread.getProxyThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
-        domains = manager.input_thread.getDomainCount()
         skipped = manager.input_thread.getNumSkipped()
-        total_threads = whoisThread.getProxyThreadCount()
         fail_saved = manager.save_thread.getNumFails()
-        print "\nExamined at least %d domains" % ((domains + skipped) - (config.MAX_QUEUE_SIZE*2 + total_threads))
+        total_saved = manager.save_thread.getNumSaved()
+        print "\nExamined at least %d domains" % (total_saved + skipped + fail_saved)
         pass
     finally:
         if config.PRINT_STATUS:

@@ -3,6 +3,9 @@
 '''Debug Mode'''
 DEBUG = False
 
+''' When printing display DPS or LPS '''
+DPS = True
+
 '''Enable checking result with EMAIL_REGEX'''
 RESULT_VALIDCHECK = False
 
