@@ -10,6 +10,7 @@ import urlparse
 import config
 import string
 import random
+import datetime
 
 #NULL whois result Exception
 class NullWhoisException(Exception):
@@ -93,6 +94,19 @@ proxy_ip_list_lock = threading.Lock()
 proxy_ip_list = list()
 numLookups_lock = threading.Lock()
 numLookups = 0
+
+
+def removeRemoteProxyIP(ip):
+    global proxy_ip_list_lock
+    global proxy_ip_list
+    proxy_ip_list_lock.acquire()
+    try:
+        if ip in proxy_ip_list:
+            proxy_ip_list.remove(ip)
+        else:
+            print "Cant remove IP from list it is not in "+ str(ip)
+    finally:
+        proxy_ip_list_lock.release()
 
 
 def addRemoteProxyIP(ip):
@@ -345,6 +359,7 @@ class Proxy:
         self.errors = 0
         self.client = proxywhois.NICClient()
         self.history = dict()
+        self.nextHistoryTrim = time.time()
 
     def connect(self):
         self.updateExternalIP()
@@ -384,6 +399,16 @@ class Proxy:
                 time.sleep(0.1)
         return None
 
+    def trimHistory(self, t):
+        if t > self.nextHistoryTrim:
+            self.nextHistoryTrim = t + datetime.timedelta(minutes=config.WHOIS_HISTORY_TRIM_MINUTES).total_seconds()
+
+            trimAge = t - config.WHOIS_SERVER_JUMP_DELAY
+            
+            for server, lastSeen in self.history.items():
+                if lastSeen < trimAge:
+                    del self.history[server]
+
     def whois(self,record):
         """This fucnction is a replacment of whois_lookup
         from the proxywhois class"""
@@ -398,8 +423,9 @@ class Proxy:
         while (recurse_level > 0) and (whois_server != None):
             whois_server = whois_server.lower()
             record.setNextServer(whois_server)
+            t = time.time()
             if whois_server in self.history:
-                tdelta = time.time() - self.history[whois_server]
+                tdelta = t - self.history[whois_server]
                 if tdelta < config.WHOIS_SERVER_JUMP_DELAY: #if the amount of time since the last query is less than the delay
                     if (config.WHOIS_SERVER_JUMP_DELAY-tdelta) < config.WHOIS_SERVER_SLEEP_DELAY: #if the time left to wait is less then the sleep delay
                         decrementActiveThreadCount()
@@ -408,8 +434,10 @@ class Proxy:
                     else:
                         time.sleep(random.random()) #this protects us from busy waiting
                         raise WhoisRatelimitException(whois_server, False)
+            self.history[whois_server] = t
             #TODO have thread remove old entries from history every x runs (runs % x)
-            self.history[whois_server] = time.time()
+            # currently useing time
+            self.trimHistory(t)
             response = WhoisResponse(whois_server)
             incrementLookupCount()
             data = None
@@ -549,8 +577,11 @@ class WhoisThread(threading.Thread):
             incrementActiveThreadCount()
 
     def run(self):
-        #get and print my remote IP, also tests the proxy for usability
+        # distribute proxys starting up
+        time.sleep(random.randrange(0, 5))
+
         while True:
+            #get and print my remote IP, also tests the proxy for usability
 
             #wait untill proxy is active if down
             while not self.proxy.connect():
@@ -562,7 +593,11 @@ class WhoisThread(threading.Thread):
             if not addRemoteProxyIP(self.proxy.external_ip):
                 if config.DEBUG:
                     print "WARNING: Proxy is already being used ["+self.proxy.server+"] on port: "+str(self.proxy.port)+" with remote IP: "+self.proxy.external_ip
-                return
+                #return
+                # dont return, insteak keep waiting just in case
+                time.sleep(config.PROXY_FAIL_RECONNECT_DELAY*3)
+                continue
+
 
             self.running = True
             incrementProxyThreadCount()
@@ -598,6 +633,8 @@ class WhoisThread(threading.Thread):
                         record.addError(error)
                         self.queue.put(record)
                         self.running = False
+                        # make sure to remove us from the active IP list
+                        removeRemoteProxyIP(self.proxy.external_ip)
                     else:
                         error = "Error Running whois on domain:["+record.domain+"] " + str(e)
                         self.fail(record,error)
@@ -625,6 +662,7 @@ class WhoisThread(threading.Thread):
                     #inform the queue we are done
                     self.queue.task_done()
                     decrementActiveThreadCount()
+
 
             decrementProxyThreadCount()
 

@@ -3,6 +3,7 @@ from Queue import Queue
 import time
 import whoisThread
 import os
+import os.path
 import urlparse
 import config
 
@@ -115,6 +116,9 @@ class EnqueueThread(threading.Thread):
             print "Unable to open file: "+ config.DOMAIN_LIST
             return
         for l in fh:
+            if self.skipped < config.SKIP_DOMAINS:
+                self.skipped +=1
+                continue
             l = l.strip().lower()
             if len(l) > 3:
                 if not (config.SKIP_DONE and self.skipDomain(l)):
@@ -133,7 +137,7 @@ class SaveThread(threading.Thread):
         self._num_saved = 0
         self._num_good = 0
         self._num_faild = 0
-        self._fail_filepath =  config.OUTPUT_FOLDER + config.FAIL_FILENAME
+        self._fail_filepath = self.getFailFileName()
         self._log_folder = config.OUTPUT_FOLDER + config.LOG_FOLDER
         self._results_folder = config.OUTPUT_FOLDER + config.RESULTS_FOLDER
         if not os.path.exists(config.OUTPUT_FOLDER):
@@ -142,6 +146,16 @@ class SaveThread(threading.Thread):
             os.makedirs(self._log_folder)
         if not os.path.exists(self._results_folder):
             os.makedirs(self._results_folder)
+
+    def getFailFileName(self):
+        fail_filepath = config.OUTPUT_FOLDER + config.FAIL_FILENAME
+        if os.path.isfile(fail_filepath):
+            fail_filepath += "."
+            i = 1;
+            while os.path.isfile(fail_filepath + str(i)):
+                i += 1
+            return fail_filepath + str(i)
+        return fail_filepath
 
     def getNumFails(self):
         return self._num_faild

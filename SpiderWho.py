@@ -56,9 +56,12 @@ def getTerminalSize():
 
 def print_status_line():
     '''prints the statusline header'''
-    sys.stdout.write("Domains\tLookups\tGood\tFail\tSaved\tActive/Proxies\tLPS\tQsize\tTime")
+    title = "\r%9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("All", "New", "Fail", "Completed", "Active", "Proxies", "LPS", "Time")
+    sys.stdout.write(title)
     sys.stdout.write("\n")
     sys.stdout.flush()
+    
+
 
 def print_status_data(manager):
     '''updates the statusline data'''
@@ -67,7 +70,7 @@ def print_status_data(manager):
 
     domains = manager.input_thread.getDomainCount()
     lookups = whoisThread.getLookupCount()
-    good_saved = manager.save_thread.getNumGood()
+    good_saved = manager.save_thread.getNumGood()  
     fail_saved = manager.save_thread.getNumFails()
     total_saved = manager.save_thread.getNumSaved()
     skipped = manager.input_thread.getNumSkipped()
@@ -77,20 +80,19 @@ def print_status_data(manager):
     last_lps = (lookups-last_lookups)/config.STATUS_UPDATE_DELAY
     total_lps = lookups/running_seconds
     lps = round(((last_lps * 0.8) + (total_lps * 0.2)), 1)
-    
-    q_size = "Full"
-    if manager.input_queue.qsize() < config.MAX_QUEUE_SIZE:
-        q_size = str(manager.input_queue.qsize())
-
     last_lookups = lookups
+    allDomains = domains + skipped
+    
+    failp = 0.0
+    if total_saved != 0:
+        failp = 100.0 * ( float(fail_saved) / float(total_saved + skipped) )
 
-    #fill terminal with whitespace
-    (width, height) = getTerminalSize()
-    sys.stdout.write('\r' + (' ' * width))
+    # term info
+    #(width, height) = getTerminalSize()
+    
+    data = "\r%9d  %9d  %5.1f%%  %9d  %6d / %-6d  %6.1f  %s " % (allDomains, domains, failp, good_saved, active_threads, total_threads, lps, running_time)
 
-
-    sys.stdout.write("\r%d  \t%d  \t%d  \t%d  \t%d  \t%d / %d  \t%.1f  \t%s \t%s " %
-            (domains, lookups, good_saved, fail_saved, total_saved, active_threads, total_threads, lps, q_size, running_time))
+    sys.stdout.write(data)
     sys.stdout.flush()
 
 
@@ -137,6 +139,7 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--numProxies", help="Maximum number of proxies to use. All=0 Default: "+str(config.NUM_PROXIES), type=int, default=config.NUM_PROXIES)
     parser.add_argument("-o", "--out", help="Output directory to store results. Default: "+config.OUTPUT_FOLDER, default=config.OUTPUT_FOLDER)
     parser.add_argument("-s", "--skip", help="Skip domains that already have results. Default: "+str(config.SKIP_DONE), action='store_true', default=config.SKIP_DONE)
+    parser.add_argument("-sn", "--skipNumber", help="Skip n domains that already have results. Default: 0", type=int, default=config.SKIP_DOMAINS)
     parser.add_argument("-d", "--debug", help="Enable debug printing", action='store_true', default=config.DEBUG)
     parser.add_argument("-e", "--emailVerify", help="Enable Email validity check", action='store_true', default=config.RESULT_VALIDCHECK)
     parser.add_argument("-l", "--log", help="Enable log saving", action='store_true', default=config.SAVE_LOGS)
@@ -154,6 +157,7 @@ if __name__ == '__main__':
     config.PRINT_STATUS = not args.quiet
     config.SAVE_LOGS = args.log
     config.LAZY_MODE = args.lazy
+    config.SKIP_DOMAINS = args.skipNumber
 
     run()
 

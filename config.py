@@ -50,7 +50,7 @@ MAX_ATTEMPTS = 3
 STATUS_UPDATE_DELAY = 1.0
 
 '''Amount of seconds to wait between using the same whois server per proxy'''
-WHOIS_SERVER_JUMP_DELAY = 20
+WHOIS_SERVER_JUMP_DELAY = 10
 
 '''Minimum seconds to sleep when waiting for a JUMP_DELAY'''
 WHOIS_SERVER_SLEEP_DELAY = 5
@@ -60,6 +60,9 @@ WHOIS_TIMEOUT_SECONDS = 10
 
 '''Amount of seconds to wait before trying to reconnect to a failed proxy'''
 PROXY_FAIL_RECONNECT_DELAY = 20
+
+''' How many minutes to wait before trimming whois history '''
+WHOIS_HISTORY_TRIM_MINUTES = 15
 
 '''
 list of servers who are known to be VERY strict with whois data
@@ -74,4 +77,4 @@ STRICT_SERVERS = [
 DOMAIN_LIST = None
 PROXY_LIST = None
 START_TIME = 0
-
+SKIP_DOMAINS = 0
