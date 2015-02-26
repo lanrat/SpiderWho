@@ -67,6 +67,12 @@ PROXY_FAIL_RECONNECT_DELAY = 20
 ''' How many minutes to wait before trimming whois history '''
 WHOIS_HISTORY_TRIM_MINUTES = 15
 
+''' Saves the tar.gz output format '''
+SAVE_TAR = True
+
+''' Numer of results to put in tar file befor rotating '''
+SAVE_TAR_SIZE = 500000
+
 '''
 list of servers who are known to be VERY strict with whois data
 TODO currently unused

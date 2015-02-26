@@ -5,8 +5,8 @@
 
 ## Usage
 ```
-usage: SpiderWho.py [-h] [-n NUMPROXIES] [-o OUT] [-s] [-d] [-e] [-l] [-q]
-                    [-z]
+usage: SpiderWho.py [-h] [-n NUMPROXIES] [-o OUT] [-f] [-s] [-sn SKIPNUMBER]
+                    [-d] [-e] [-l] [-q] [-z]
                     proxies domains
 
 positional arguments:
@@ -18,7 +18,11 @@ optional arguments:
   -n NUMPROXIES, --numProxies NUMPROXIES
                         Maximum number of proxies to use. All=0 Default: 0
   -o OUT, --out OUT     Output directory to store results. Default: out/
-  -s, --skip            Skip domains that already have results. Default: False
+  -f, --files           Output to files instead of tgz. Default: False
+  -s, --skip            Skip domains that already have results. Only
+                        compatible with --files Default: False
+  -sn SKIPNUMBER, --skipNumber SKIPNUMBER
+                        Skip n domains that already have results. Default: 0
   -d, --debug           Enable debug printing
   -e, --emailVerify     Enable Email validity check
   -l, --log             Enable log saving
@@ -29,32 +33,37 @@ optional arguments:
 ### Proxy Lists
 Proxy lists should have one proxy per line in the following format:  
 `http://MyProxyHost:port`.  
-Both http and socks proxies are supported Comments are allowed and start with "#".
+Both http and socks proxies are supported. Comments are allowed and start with "#".
 
 ### Domain Lists
 Domain lists should have one domain per line.
 List may contain domain names or IP addresses.
 
 ### Lazy mode
-Lazy mode will increase your LPS and overall speed at the cost of accuracy
+Lazy mode will increase your Lookups per Second (LPS) and overall speed at the cost of accuracy
 In lazy mode, if a WHOIS server has a rate limit much stronger than what we expect we will fail the domain after 3 attempts.
 In normal mode we will try until we get a result.
 
 ### Output
 ```
-Domains Lookups Good    Fail    Saved   Skipped ActiveT TotalT  LPS     Time
-11219   1611    1021    70      1091    0       100     242     77.00   0:00:20
+Prog       All        New    Fail  Completed   Active/Proxies     DPS  Time
+ 14%  16803445    2438762    9.7%    2192796      90 / 270       32.3  18:11:47   
 ```
-Domains: Total domains loaded into the crawler.  
-Lookups: Total number of WHOIS queries performed.  
-Good: Total number of successful saves.  
-Fail: Total number of queries that have failed more than the max retries amount.  
-Saved: Total number of saved queries. When logging is disabled this number is equal to Good.  
-Sipped: The total number of domains that have been skipped because a result was already found in the output directory.  
-ActiveT: The number of active threads actively performing a WHOIS query not waiting due to rate limiting.  
-TotalT: The total number of working and active proxies. This number may change as proxies provided go up or down.  
-LPS: Lookups per second. How many queries have been performed each second.  
+Prog: How much of the input domain list has been read and queued.
+All: How many domains have been scanned as input (also includes skipped domains with the -sn option)
+New: Number of domains set to be crawled.
+Fail: Percent of domains that have failed more than the max retries amount.
+Completed: Total number of domains with saved results.  
+Active: The number of active threads actively performing a WHOIS query not waiting due to rate limiting or other blocking operations.
+Proxies: The total number of working and proxies. This number may change as proxies provided go up or down.  
+DPS/LPS: Domains or Lookups per second. How many queries have been performed each second.  
 Time: The total running time of the program.  
+
+### Output Data
+By default a .tgz file is created in the output directory with the results that is rotated and named
+with the timestamp of the first record it contains.
+This behavior an be disabled with the --files option to create a new file for every domain, however
+this will cause poor behavior on large scans due to the massive amount of files out into a single directory.
 
 ### Advanced Settings
 Advanced settings can be changed in config.py.  
@@ -63,5 +72,3 @@ config.py contains default values that can be overridden  by command arguments.
 ## TODO
 1. Adaptive query back-off
 2. Support for whois servers that forward to http
-3. Update this README
-

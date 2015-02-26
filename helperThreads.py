@@ -6,7 +6,8 @@ import os
 import os.path
 import urlparse
 import config
-
+import tarfile
+import StringIO
 
 #this thread is in charge of starting all the other
 #threads and keeping track of thir running status
@@ -96,6 +97,8 @@ class EnqueueThread(threading.Thread):
         self.valid = False
         self.skipped = 0
         self._results_folder = config.OUTPUT_FOLDER+config.RESULTS_FOLDER
+        self._inputSize = 0.1 # not 0 to prevent divide by 0 errors
+        self._fh = None
 
     def getNumSkipped(self):
         return self.skipped
@@ -107,15 +110,21 @@ class EnqueueThread(threading.Thread):
     def getDomainCount(self):
         return self._domains
 
+    def getProgress(self):
+        if self._fh == None:
+            return 1.0
+        return self._fh.tell() / self._inputSize
+
     def run(self):
         try:
-            fh = open(config.DOMAIN_LIST, 'r')
+            self._fh = open(config.DOMAIN_LIST, 'r')
             self.valid = True
+            self._inputSize = float(os.fstat(self._fh.fileno()).st_size)
         except IOError:
             self.valid = False
             print "Unable to open file: "+ config.DOMAIN_LIST
             return
-        for l in fh:
+        for l in self._fh:
             if self.skipped < config.SKIP_DOMAINS:
                 self.skipped +=1
                 continue
@@ -128,6 +137,8 @@ class EnqueueThread(threading.Thread):
                     self._domains +=1
                 else:
                     self.skipped +=1
+        self._fh.close()
+        self._fh = None
 
 #runs in the background and saves data as we collect it
 class SaveThread(threading.Thread):
@@ -137,6 +148,8 @@ class SaveThread(threading.Thread):
         self._num_saved = 0
         self._num_good = 0
         self._num_faild = 0
+        self._num_tared = 0
+        self._tar_file = None
         self._fail_filepath = self.getFailFileName()
         self._log_folder = config.OUTPUT_FOLDER + config.LOG_FOLDER
         self._results_folder = config.OUTPUT_FOLDER + config.RESULTS_FOLDER
@@ -203,8 +216,56 @@ class SaveThread(threading.Thread):
             print "Unabe to write to fail file"
             return False
 
-
     def saveData(self, record):
+        if config.SAVE_TAR:
+            return self.saveDataTar(record)
+        else:
+            return self.saveDataFile(record)
+
+    def startTar(self):
+        self._num_tared = 0
+        tarname = self.nextTarName()
+        self._tar_file = tarfile.open(tarname, "w:gz")
+
+    
+    def nextTarName(self):
+        tstamp = time.strftime("%Y.%m.%d-%H.%M")
+        tar_filepath = self._results_folder+tstamp
+        if os.path.isfile(tar_filepath+".tgz"):
+            tar_filepath += "."
+            i = 1;
+            while os.path.isfile(tar_filepath+str(i)+".tgz"):
+                i += 1
+            return tar_filepath + str(i)+".tgz"
+        return tar_filepath+".tgz"
+
+
+
+    def closeTar(self):
+        """ensure this runs on program exit"""
+        if self._tar_file:
+            self._tar_file.close()
+        self._tar_file = None
+
+    def saveDataTar(self, record):
+        if not self._tar_file:
+            self.startTar()
+
+        # append record to tar
+        who_file = tarfile.TarInfo(record.domain+"."+config.SAVE_EXT)
+        data = record.getData()
+        who_file.size = len(data)
+        who_file.mtime = time.time()
+        self._num_tared += 1
+        self._tar_file.addfile(who_file, StringIO.StringIO(data))
+        self._num_good += 1
+
+        if self._num_tared == config.SAVE_TAR_SIZE:
+            self.closeTar()
+        return True
+        
+
+    def saveDataFile(self, record):
         try:
             f = open(self._results_folder+record.domain+"."+config.SAVE_EXT, 'w')
             f.write(record.getData())

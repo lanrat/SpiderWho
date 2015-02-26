@@ -59,7 +59,7 @@ def print_status_line():
     rps = "LPS"
     if config.DPS:
         rps = "DPS"
-    title = "\r%9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("All", "New", "Fail", "Completed", "Active", "Proxies", rps, "Time")
+    title = "\r%4s %9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("Prog", "All", "New", "Fail", "Completed", "Active", "Proxies", rps, "Time")
     sys.stdout.write(title)
     sys.stdout.write("\n")
     sys.stdout.flush()
@@ -79,6 +79,8 @@ def print_status_data(manager):
     active_threads = whoisThread.getActiveThreadCount()
     total_threads = whoisThread.getProxyThreadCount()
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
+    q_size = manager.input_queue.qsize()
+    progress = 100*manager.input_thread.getProgress()
 
     rlookups = good_saved
     if not config.DPS:
@@ -89,7 +91,7 @@ def print_status_data(manager):
     lps = (last_lps * 0.8) + (total_lps * 0.2)
     last_lookups = rlookups
 
-    allDomains = domains + skipped
+    allDomains = (domains + skipped) - q_size
     
     failp = 0.0
     if total_saved != 0:
@@ -99,11 +101,11 @@ def print_status_data(manager):
     (width, height) = getTerminalSize()
     # clear screen
     sys.stdout.write('\r' + (' ' * width))
-   
-    data = "\r%9d  %9d  %5.1f%%  %9d  %6d / %-6d  %6.1f  %s " % (allDomains, domains, failp, good_saved, active_threads, total_threads, lps, running_time)
+
+    data = "\r%3.0f%% %9d  %9d  %5.1f%%  %9d  %6d / %-6d  %6.1f  %s" % (progress, allDomains, domains, failp, good_saved, active_threads, total_threads, lps, running_time)
+
     sys.stdout.write(data)
 
-    q_size = manager.input_queue.qsize()
     if q_size < (config.MAX_QUEUE_SIZE/10):
         sys.stdout.write(" WARNING: input queue is %d " % q_size)
 
@@ -141,11 +143,17 @@ def run():
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
         skipped = manager.input_thread.getNumSkipped()
-        fail_saved = manager.save_thread.getNumFails()
-        total_saved = manager.save_thread.getNumSaved()
-        print "\nExamined at least %d domains" % (total_saved + skipped + fail_saved)
+        loaded = manager.input_thread.getDomainCount()
+        total = skipped + loaded - config.MAX_QUEUE_SIZE
+        #fail_saved = manager.save_thread.getNumFails()
+        #total_saved = manager.save_thread.getNumSaved()
+        #print "\nExamined at least %d domains" % (total_saved + skipped + fail_saved)
+        print "\nExamined at least %d domains" % (total)
+        config.PRINT_STATUS = False
         pass
     finally:
+# ensure the tar file is closed
+        manager.save_thread.closeTar()
         if config.PRINT_STATUS:
             print_status_data(manager)
             sys.stdout.write("\n")
@@ -160,7 +168,8 @@ if __name__ == '__main__':
     parser.add_argument("domains", help="file containing a list of domains to use")
     parser.add_argument("-n", "--numProxies", help="Maximum number of proxies to use. All=0 Default: "+str(config.NUM_PROXIES), type=int, default=config.NUM_PROXIES)
     parser.add_argument("-o", "--out", help="Output directory to store results. Default: "+config.OUTPUT_FOLDER, default=config.OUTPUT_FOLDER)
-    parser.add_argument("-s", "--skip", help="Skip domains that already have results. Default: "+str(config.SKIP_DONE), action='store_true', default=config.SKIP_DONE)
+    parser.add_argument("-f", "--files", help="Output to files instead of tgz. Default: "+str(not config.SAVE_TAR), action="store_true", default=(not config.SAVE_TAR))
+    parser.add_argument("-s", "--skip", help="Skip domains that already have results. Only compatible with --files Default: "+str(config.SKIP_DONE), action='store_true', default=config.SKIP_DONE)
     parser.add_argument("-sn", "--skipNumber", help="Skip n domains that already have results. Default: 0", type=int, default=config.SKIP_DOMAINS)
     parser.add_argument("-d", "--debug", help="Enable debug printing", action='store_true', default=config.DEBUG)
     parser.add_argument("-e", "--emailVerify", help="Enable Email validity check", action='store_true', default=config.RESULT_VALIDCHECK)
@@ -180,6 +189,10 @@ if __name__ == '__main__':
     config.SAVE_LOGS = args.log
     config.LAZY_MODE = args.lazy
     config.SKIP_DOMAINS = args.skipNumber
+    config.SAVE_TAR = not args.files
 
-    run()
+    if config.SKIP_DONE and config.SAVE_TAR:
+        print "--skip is only compatible with --files"
+    else:
+        run()
 
