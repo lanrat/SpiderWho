@@ -107,11 +107,11 @@ def print_status_data(manager):
     sys.stdout.write(data)
 
     if q_size < (config.MAX_QUEUE_SIZE/10):
-        sys.stdout.write(" WARNING: input queue is %d " % q_size)
+        sys.stdout.write("  WARNING: input queue is %d " % q_size)
 
     sq_size = manager.save_queue.qsize()
     if sq_size > (config.MAX_QUEUE_SIZE/5):
-        sys.stdout.write(" WARNING: save queue is %d " % sq_size)
+        sys.stdout.write("  WARNING: save queue is %d " % sq_size)
 
     sys.stdout.flush()
 
@@ -142,13 +142,12 @@ def run():
         if (whoisThread.getProxyThreadCount() == 0):
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
-        skipped = manager.input_thread.getNumSkipped()
-        loaded = manager.input_thread.getDomainCount()
-        total = skipped + loaded - config.MAX_QUEUE_SIZE
-        #fail_saved = manager.save_thread.getNumFails()
-        #total_saved = manager.save_thread.getNumSaved()
-        #print "\nExamined at least %d domains" % (total_saved + skipped + fail_saved)
-        print "\nExamined at least %d domains" % (total)
+        q_size = manager.input_queue.qsize()
+        if q_size <= (config.MAX_QUEUE_SIZE - 1):
+            skipped = manager.input_thread.getNumSkipped()
+            loaded = manager.input_thread.getDomainCount()
+            total = skipped + loaded - config.MAX_QUEUE_SIZE
+            print "\nExamined at least %d domains" % (total)
         config.PRINT_STATUS = False
         pass
     finally:
