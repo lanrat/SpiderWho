@@ -252,13 +252,38 @@ class SaveThread(threading.Thread):
             self.startTar()
 
         # append record to tar
-        who_file = tarfile.TarInfo(record.domain+"."+config.SAVE_EXT)
-        data = record.getData()
-        who_file.size = len(data)
-        who_file.mtime = time.time()
-        self._num_tared += 1
-        self._tar_file.addfile(who_file, StringIO.StringIO(data))
-        self._num_good += 1
+        if config.SPLIT_THICK:
+            data = record.getThinData()
+            if data:
+                who_file = tarfile.TarInfo("thin/"+record.domain+"."+config.SAVE_EXT)
+                who_file.size = len(data)
+                who_file.mtime = time.time()
+                self._tar_file.addfile(who_file, StringIO.StringIO(data))
+            else:
+# warning no thin data found
+                if config.DEBUG:
+                    print "Warning: no thin data for "+record.domain
+
+            data = record.getThickData()
+            if data:
+                who_file = tarfile.TarInfo("thick/"+record.domain+"."+config.SAVE_EXT)
+                who_file.size = len(data)
+                who_file.mtime = time.time()
+                self._num_tared += 1
+                self._tar_file.addfile(who_file, StringIO.StringIO(data))
+                self._num_good += 1
+            else:
+# warning no thick data found
+                if config.DEBUG:
+                    print "Warning: no thick data for "+record.domain
+        else:
+            who_file = tarfile.TarInfo(record.domain+"."+config.SAVE_EXT)
+            data = record.getAllData()
+            who_file.size = len(data)
+            who_file.mtime = time.time()
+            self._num_tared += 1
+            self._tar_file.addfile(who_file, StringIO.StringIO(data))
+            self._num_good += 1
 
         if self._num_tared == config.SAVE_TAR_SIZE:
             self.closeTar()
@@ -267,9 +292,17 @@ class SaveThread(threading.Thread):
 
     def saveDataFile(self, record):
         try:
-            f = open(self._results_folder+record.domain+"."+config.SAVE_EXT, 'w')
-            f.write(record.getData())
-            f.close()
+            if config.SPLIT_THICK:
+                f1 = open(self._results_folder+record.domain+".thick."+config.SAVE_EXT, 'w')
+                f1.write(record.getThickData())
+                f1.close()
+                f2 = open(self._results_folder+record.domain+".thin."+config.SAVE_EXT, 'w')
+                f2.write(record.getThinData())
+                f2.close()
+            else:
+                f = open(self._results_folder+record.domain+"."+config.SAVE_EXT, 'w')
+                f.write(record.getAllData())
+                f.close()
             self._num_good += 1
             return True
         except IOError:

@@ -115,7 +115,7 @@ class NICClient(object) :
 
     def TLDSpecificQuery(self,tld,query,server):
         tld = tld.lower()
-        if tld in ['com','net','edu'] and server.endswith(NICClient.QNICHOST_TAIL):
+        if tld in ['com','net'] and server.endswith(NICClient.QNICHOST_TAIL):
             query = "="+query
         return query
 

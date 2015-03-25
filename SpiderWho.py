@@ -170,6 +170,7 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--files", help="Output to files instead of tgz. Default: "+str(not config.SAVE_TAR), action="store_true", default=(not config.SAVE_TAR))
     parser.add_argument("-s", "--skip", help="Skip domains that already have results. Only compatible with --files Default: "+str(config.SKIP_DONE), action='store_true', default=config.SKIP_DONE)
     parser.add_argument("-sn", "--skipNumber", help="Skip n domains that already have results. Default: 0", type=int, default=config.SKIP_DOMAINS)
+    parser.add_argument("-sp", "--split", help="Split Thick and Thin whois results into different folders. Default: "+str(config.SPLIT_THICK), action='store_true', default=config.SPLIT_THICK)
     parser.add_argument("-d", "--debug", help="Enable debug printing", action='store_true', default=config.DEBUG)
     parser.add_argument("-e", "--emailVerify", help="Enable Email validity check", action='store_true', default=config.RESULT_VALIDCHECK)
     parser.add_argument("-l", "--log", help="Enable log saving", action='store_true', default=config.SAVE_LOGS)
@@ -186,6 +187,7 @@ if __name__ == '__main__':
     config.RESULT_VALIDCHECK = args.emailVerify
     config.PRINT_STATUS = not args.quiet
     config.SAVE_LOGS = args.log
+    config.SPLIT_THICK = args.split
     config.LAZY_MODE = args.lazy
     config.SKIP_DOMAINS = args.skipNumber
     config.SAVE_TAR = not args.files

@@ -73,6 +73,11 @@ SAVE_TAR = True
 ''' Numer of results to put in tar file befor rotating '''
 SAVE_TAR_SIZE = 500000
 
+
+''' Split Thick and Thin results '''
+SPLIT_THICK = False
+
+
 '''
 list of servers who are known to be VERY strict with whois data
 TODO currently unused

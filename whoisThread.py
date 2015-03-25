@@ -22,7 +22,7 @@ class NullWhoisException(Exception):
     def __str__(self):
         return "Null Whois: "+repr(self.value)
 
-#TODO this has been deprecated to the exceptions inside proxywhois
+# this has been deprecated in favor of the exceptions inside proxywhois
 class WhoisTimeoutException(Exception):
     count = 0
     def __init__(self, value):
@@ -229,7 +229,7 @@ class WhoisResult:
     def valid(self):
         '''performs quick checking to verify that the data we got may contain some valid data'''
         #search for email
-        match = re.search(config.EMAIL_REGEX, self.getData())
+        match = re.search(config.EMAIL_REGEX, self.getThickData())
         if match:
             return True
         return False
@@ -260,12 +260,30 @@ class WhoisResult:
                 log += attempt.getLogData()
         return log
 
-    def getData(self,all_data=True):
+    def getAllData(self,all_data=True):
         """Returnes the string response of the last response on the last attempt"""
+        """ there is a bug here when a failure ofccored on a thick server the thin data is not saved"""
+        """ deprecating this function in favor of getthick and getthin """
         if all_data:
             return self.attempts[-1].getResponse()
         else:
             return self.attempts[-1].getLastResponse()
+
+    def getThickData(self):
+        for attempt in self.attempts[::-1]:
+            r = attempt.getThickResponse()
+            if r:
+                return r.getResponse()
+        return None
+
+
+    def getThinData(self):
+        for attempt in self.attempts[::-1]:
+            r = attempt.getThinResponse()
+            if r:
+                return r.getResponse()
+        return None
+
 
     def numFails(self):
         return self.fails
@@ -320,8 +338,30 @@ class WhoisAttempt:
                 ret += "\n"
             return ret
 
+    def getThickResponse(self):
+        for r in self.responses[::-1]:
+            if r.resultType == ResultType.Thick:
+                return r
+        return None
+
+
+    def getThinResponse(self):
+        for r in self.responses[::-1]:
+            if r.resultType == ResultType.Thin:
+                return r
+        return None
+
+
     def addResponse(self,response):
         self.responses.append(response)
+
+
+""" Class to represent thick / thin enum types """
+class ResultType():
+    Unknown = 0
+    Thin = 1
+    Thick = 2
+
 
 """Class used to store the response of an individual
 whois query, may be a thick or thin result"""
@@ -329,6 +369,7 @@ class WhoisResponse:
     def __init__(self, server):
         self.server = server
         self.response = None
+        self.resultType = ResultType.Unknown
 
     def setResponse(self,response):
         self.response = response
@@ -338,6 +379,12 @@ class WhoisResponse:
 
     def getServer(self):
         return self.server
+
+    def getType(self):
+        return self.resultType
+
+    def setType(self, t):
+        self.resultType = t
 
     def getLogData(self):
         log = list()
@@ -419,6 +466,7 @@ class Proxy:
         recurse_level = 2
         whois_server = record.getNextServer()
         if whois_server == None:
+            # find inital whois server
             whois_server = self.client.choose_server(record.domain)
         while (recurse_level > 0) and (whois_server != None):
             whois_server = whois_server.lower()
@@ -549,8 +597,17 @@ class Proxy:
                     raise WhoisLinesException(error,data)
 
             recurse_level -= 1
-            if recurse_level > 0:
-                whois_server = self.client.findwhois_server(response.getResponse(),whois_server)
+            if recurse_level == 0:
+                    response.setType(ResultType.Thick)
+            else:
+                whois_server = self.client.findwhois_server(response.getResponse(),whois_server) # get next whois server if exists
+                if whois_server == None:
+                    # mark response as thick
+                    response.setType(ResultType.Thick)
+                else:
+                    # mark response as thin
+                    response.setType(ResultType.Thin)
+
         return response #returns the last response used
 
 
