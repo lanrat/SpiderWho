@@ -18,7 +18,7 @@ class ManagerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.input_queue = Queue() #maxsize set inside EnqueueThread
-        self.save_queue = Queue(maxsize=config.MAX_QUEUE_SIZE)
+        self.save_queue = Queue(maxsize=config.MAX_SAVE_QUEUE_SIZE)
         self.input_thread = None
         self.save_thread = None
         self.ready = False
@@ -131,7 +131,7 @@ class EnqueueThread(threading.Thread):
             l = l.strip().lower()
             if len(l) > 3:
                 if not (config.SKIP_DONE and self.skipDomain(l)):
-                    while self._queue.qsize() >= config.MAX_QUEUE_SIZE:
+                    while self._queue.qsize() >= config.MAX_READ_QUEUE_SIZE:
                         time.sleep(0.1)
                     self._queue.put(whoisThread.WhoisResult(l))
                     self._domains +=1

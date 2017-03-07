@@ -5,6 +5,7 @@ DEBUG = False
 
 ''' When printing display DPS or LPS '''
 DPS = True
+#DPS = False
 
 '''Enable checking result with EMAIL_REGEX'''
 RESULT_VALIDCHECK = False
@@ -39,15 +40,20 @@ LOG_EXT = "log"
 '''Maximum number of proxies/threads to use, 0=All'''
 NUM_PROXIES = 0
 
+''' Number of seconds to wait veore starting next thread '''
+THREAD_START_DELAY = 10
+
 '''Maximum size of queues, when the queues reach their max size they will block new items until items are removed'''
-MAX_QUEUE_SIZE = 10000
+MAX_READ_QUEUE_SIZE = 1000
+MAX_SAVE_QUEUE_SIZE = 100
 
 '''Minimum number of lines of response required for it to be considered valid'''
 MIN_RESPONSE_LINES = 4
 
 '''When a result fails for any reason, retry it'''
 '''setting this value to less than 2 will greatly reduce the reliability of the program'''
-MAX_ATTEMPTS = 3
+#MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 2
 
 '''Amount of seconds to wait when updating output (float)'''
 STATUS_UPDATE_DELAY = 1.0
@@ -56,7 +62,8 @@ STATUS_UPDATE_DELAY = 1.0
 WHOIS_SERVER_JUMP_DELAY = 10
 
 '''Minimum seconds to sleep when waiting for a JUMP_DELAY'''
-WHOIS_SERVER_SLEEP_DELAY = 5
+WHOIS_SERVER_SLEEP_DELAY = 3
+#WHOIS_SERVER_SLEEP_DELAY = 8
 
 '''Amount of seconds to give each whois query before failing'''
 WHOIS_TIMEOUT_SECONDS = 10
@@ -65,7 +72,7 @@ WHOIS_TIMEOUT_SECONDS = 10
 PROXY_FAIL_RECONNECT_DELAY = 20
 
 ''' How many minutes to wait before trimming whois history '''
-WHOIS_HISTORY_TRIM_MINUTES = 15
+WHOIS_HISTORY_TRIM_MINUTES = 5
 
 ''' Saves the tar.gz output format '''
 SAVE_TAR = True
@@ -73,10 +80,8 @@ SAVE_TAR = True
 ''' Numer of results to put in tar file befor rotating '''
 SAVE_TAR_SIZE = 500000
 
-
 ''' Split Thick and Thin results '''
 SPLIT_THICK = False
-
 
 '''
 list of servers who are known to be VERY strict with whois data

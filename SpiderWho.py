@@ -59,7 +59,7 @@ def print_status_line():
     rps = "LPS"
     if config.DPS:
         rps = "DPS"
-    title = "\r%4s %9s  %9s  %6s  %9s  %7s/%-7s  %6s  %s" % ("Prog", "All", "New", "Fail", "Completed", "Active", "Proxies", rps, "Time")
+    title = "\r%4s %6s  %9s  %7s/%-7s  %4s/A%3s  %s" % ("Prog", "Fail", "Completed", "Active", "Proxies", rps, rps, "Time")
     sys.stdout.write(title)
     sys.stdout.write("\n")
     sys.stdout.flush()
@@ -71,16 +71,15 @@ def print_status_data(manager):
     global last_lookups
     running_seconds = (time.time() - config.START_TIME)
 
-    domains = manager.input_thread.getDomainCount()
     good_saved = manager.save_thread.getNumGood()  
     fail_saved = manager.save_thread.getNumFails()
     total_saved = manager.save_thread.getNumSaved()
-    skipped = manager.input_thread.getNumSkipped()
     active_threads = whoisThread.getActiveThreadCount()
     total_threads = whoisThread.getProxyThreadCount()
     running_time = str(datetime.timedelta(seconds=int(running_seconds)))
     q_size = manager.input_queue.qsize()
-    progress = 100*manager.input_thread.getProgress()
+    sq_size = manager.save_queue.qsize()
+    progress = 100 * manager.input_thread.getProgress()
 
     rlookups = good_saved
     if not config.DPS:
@@ -88,11 +87,10 @@ def print_status_data(manager):
 
     last_lps = (rlookups-last_lookups)/config.STATUS_UPDATE_DELAY
     total_lps = rlookups/running_seconds
-    lps = (last_lps * 0.8) + (total_lps * 0.2)
+    #lps = (last_lps * 0.8) + (total_lps * 0.2)
+    lps = last_lps
     last_lookups = rlookups
 
-    allDomains = (domains + skipped) - q_size
-    
     failp = 0.0
     if total_saved != 0:
         failp = 100.0 * ( float(fail_saved) / float(total_saved) )
@@ -102,15 +100,14 @@ def print_status_data(manager):
     # clear screen
     sys.stdout.write('\r' + (' ' * width))
 
-    data = "\r%3.0f%% %9d  %9d  %5.1f%%  %9d  %6d / %-6d  %6.1f  %s" % (progress, allDomains, domains, failp, good_saved, active_threads, total_threads, lps, running_time)
+    data = "\r%3.0f%% %5.1f%%  %9d  %6d / %-6d  %4d/%-4.1f  %s" % (progress, failp, good_saved, active_threads, total_threads, lps, total_lps, running_time)
 
     sys.stdout.write(data)
 
-    if q_size < (config.MAX_QUEUE_SIZE/10):
+    if q_size < (config.MAX_READ_QUEUE_SIZE/10) and manager.input_thread.isAlive():
         sys.stdout.write("  WARNING: input queue is %d " % q_size)
 
-    sq_size = manager.save_queue.qsize()
-    if sq_size > (config.MAX_QUEUE_SIZE/5):
+    if sq_size > (config.MAX_SAVE_QUEUE_SIZE/5):
         sys.stdout.write("  WARNING: save queue is %d " % sq_size)
 
     sys.stdout.flush()
@@ -143,10 +140,10 @@ def run():
             print "No valid Proxy threads running!!"
     except KeyboardInterrupt:
         q_size = manager.input_queue.qsize()
-        if q_size <= (config.MAX_QUEUE_SIZE - 1):
-            skipped = manager.input_thread.getNumSkipped()
-            loaded = manager.input_thread.getDomainCount()
-            total = skipped + loaded - config.MAX_QUEUE_SIZE
+        #if q_size <= (config.MAX_READ_QUEUE_SIZE - 1):
+        if q_size > 0:
+            total_saved = manager.save_thread.getNumSaved()
+            total = total_saved + config.SKIP_DOMAINS
             print "\nExamined at least %d domains" % (total)
         config.PRINT_STATUS = False
         pass

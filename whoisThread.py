@@ -413,6 +413,7 @@ class Proxy:
         self.client.set_proxy(self.proxy_type, self.server, self.port)
         if not self.external_ip:
             return False
+        self.nextHistoryTrim = time.time() # update the next time again to distribute the history trim load
         self.ready = True
         return self.ready
 
@@ -448,6 +449,7 @@ class Proxy:
 
     def trimHistory(self, t):
         if t > self.nextHistoryTrim:
+            #decrementActiveThreadCount()
             self.nextHistoryTrim = t + datetime.timedelta(minutes=config.WHOIS_HISTORY_TRIM_MINUTES).total_seconds()
 
             trimAge = t - config.WHOIS_SERVER_JUMP_DELAY
@@ -455,6 +457,7 @@ class Proxy:
             for server, lastSeen in self.history.items():
                 if lastSeen < trimAge:
                     del self.history[server]
+            #incrementActiveThreadCount()
 
     def whois(self,record):
         """This fucnction is a replacment of whois_lookup
@@ -476,28 +479,30 @@ class Proxy:
                 tdelta = t - self.history[whois_server]
                 if tdelta < config.WHOIS_SERVER_JUMP_DELAY: #if the amount of time since the last query is less than the delay
                     if (config.WHOIS_SERVER_JUMP_DELAY-tdelta) < config.WHOIS_SERVER_SLEEP_DELAY: #if the time left to wait is less then the sleep delay
-                        decrementActiveThreadCount()
+                        #decrementActiveThreadCount()
                         time.sleep(config.WHOIS_SERVER_JUMP_DELAY-tdelta)
-                        incrementActiveThreadCount()
+                        #incrementActiveThreadCount()
                     else:
-                        time.sleep(random.random()) #this protects us from busy waiting
+                        time.sleep(0.1) #this protects us from busy waiting
                         raise WhoisRatelimitException(whois_server, False)
             self.history[whois_server] = t
-            #TODO have thread remove old entries from history every x runs (runs % x)
-            # currently useing time
+            # remove old entries from history dict
             self.trimHistory(t)
             response = WhoisResponse(whois_server)
             incrementLookupCount()
             data = None
+            incrementActiveThreadCount()
             try:
                 data = self.client.whois(record.domain, whois_server, 0)
             except proxywhois.ServerTroubleException as e:
                 raise WhoisRatelimitException(whois_server, False, True)
+            finally:
+                decrementActiveThreadCount()
             if data == None or len(data) < 1:
                 error = "Error: Empty response recieved for domain: "+record.domain+" on server: "+whois_server+" Using proxy: "+self.server
                 if config.DEBUG:
                     print error
-                #TODO this may often be a WhoisRatelimitException case
+                #TODO this may be a WhoisRatelimitException case
                 raise NullWhoisException(error)
 
             response.setResponse(data)
@@ -524,7 +529,7 @@ class Proxy:
                     raise WhoisRatelimitException(whois_server)
                 if "limit reached" in data_lower:
                     raise WhoisRatelimitException(whois_server)
-                if "IP addresses that may have failed" in data_lower:
+                if "ip addresses that may have failed" in data_lower:
                     raise WhoisRatelimitException(whois_server)
 
                 '''non-existant domain'''
@@ -572,7 +577,6 @@ class Proxy:
                     raise WhoisBadDomainException(record.domain)
 
                 ''' http whois errors'''
-                #TODO WGET http url
                 #TODO some of these http errors may never acually be seen due to the linux whois client being hardcoded
                 if "this tld has no whois server, but you can access the whois database at" in data_lower:
                     #url = data.splitlines()[-1])
@@ -631,13 +635,13 @@ class WhoisThread(threading.Thread):
             self.queue.put(record)
         else:
             record.maxAttempts = True
-            decrementActiveThreadCount()
+            #decrementActiveThreadCount()
             self.save_queue.put(record)
-            incrementActiveThreadCount()
+            #incrementActiveThreadCount()
 
     def run(self):
         # distribute proxys starting up
-        time.sleep(random.randrange(0, 5))
+        time.sleep(random.randrange(0, config.THREAD_START_DELAY))
 
         while True:
             #get and print my remote IP, also tests the proxy for usability
@@ -664,7 +668,7 @@ class WhoisThread(threading.Thread):
             while self.running:
                 #get next host
                 record = self.queue.get()
-                incrementActiveThreadCount()
+                #incrementActiveThreadCount()
                 record.addAttempt(WhoisAttempt(self.proxy))
                 try:
                     if config.DEBUG:
@@ -693,7 +697,9 @@ class WhoisThread(threading.Thread):
                         self.queue.put(record)
                         self.running = False
                         # make sure to remove us from the active IP list
+                        #decrementActiveThreadCount()
                         removeRemoteProxyIP(self.proxy.external_ip)
+                        #incrementActiveThreadCount()
                     else:
                         error = "Error Running whois on domain:["+record.domain+"] " + str(e)
                         self.fail(record,error)
@@ -711,16 +717,16 @@ class WhoisThread(threading.Thread):
                 else:
                     if (not config.RESULT_VALIDCHECK) or record.valid():
                         record.current_attempt.success = True
-                        decrementActiveThreadCount()
+                        #decrementActiveThreadCount()
                         self.save_queue.put(record)
-                        incrementActiveThreadCount()
+                        #incrementActiveThreadCount()
                     else:
                         error =  "INVALID RESULT: [" + record.domain + "] Failed validity check"
                         self.fail(record,error)
                 finally:
                     #inform the queue we are done
                     self.queue.task_done()
-                    decrementActiveThreadCount()
+                    #decrementActiveThreadCount()
 
 
             decrementProxyThreadCount()
