@@ -297,7 +297,9 @@ class SaveThread(threading.Thread):
                 f1.write(record.getThickData())
                 f1.close()
                 f2 = open(self._results_folder+record.domain+".thin."+config.SAVE_EXT, 'w')
-                f2.write(record.getThinData())
+                thinData = record.getThinData()
+                if thinData != None:
+                    f2.write(thinData)
                 f2.close()
             else:
                 f = open(self._results_folder+record.domain+"."+config.SAVE_EXT, 'w')
