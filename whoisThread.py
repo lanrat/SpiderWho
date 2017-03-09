@@ -435,7 +435,7 @@ class Proxy:
                 s.settimeout(config.WHOIS_TIMEOUT_SECONDS)
                 s.setproxy(self.proxy_type,self.server, self.port)
                 s.connect((url.hostname, 80))
-                s.send('GET '+url.path+' \nHost: '+url.hostname+'\r\n\r\n')
+                s.send('GET '+url.path+' HTTP/1.0\r\nHost: '+url.hostname+'\r\n\r\n')
                 r = s.recv(4096)
             except Exception as e:
                 time.sleep(0.1)
